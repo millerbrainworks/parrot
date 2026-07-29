@@ -89,13 +89,16 @@ struct Run: ParsableCommand {
             capture.onLevel = { level in overlay.pushLevel(level) }
         }
         let menuBar = MainActor.assumeIsolated { MenuBarController(modelID: chosenModel.id) }
+        var isRecording = false
 
         do {
             try monitor.start { event in
                 switch event {
-                case .pressed:
+                case .toggleRecording where !isRecording:
                     do {
                         try capture.start()
+                        isRecording = true
+                        monitor.setCancellationEnabled(true)
                         FileHandle.standardError.write(Data("● recording\n".utf8))
                         MainActor.assumeIsolated {
                             overlay?.show(.recording)
@@ -104,7 +107,9 @@ struct Run: ParsableCommand {
                     } catch {
                         FileHandle.standardError.write(Data("capture failed: \(error)\n".utf8))
                     }
-                case .released:
+                case .toggleRecording:
+                    isRecording = false
+                    monitor.setCancellationEnabled(false)
                     let samples = capture.stop()
                     MainActor.assumeIsolated {
                         overlay?.show(.transcribing)
@@ -151,6 +156,16 @@ struct Run: ParsableCommand {
                                 menuBar.setRecording(false)
                             }
                         }
+                    }
+                case .cancelRecording:
+                    guard isRecording else { return }
+                    isRecording = false
+                    monitor.setCancellationEnabled(false)
+                    _ = capture.stop()
+                    FileHandle.standardError.write(Data("recording canceled\n".utf8))
+                    MainActor.assumeIsolated {
+                        overlay?.hide()
+                        menuBar.setRecording(false)
                     }
                 }
             }

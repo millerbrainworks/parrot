@@ -3,20 +3,26 @@ import ApplicationServices
 import CoreGraphics
 import Foundation
 
-/// Watches a single modifier key (default: Fn) and emits press/release edges.
-/// Requires Accessibility permission. If the tap fails to register, callers
-/// will see an error from `start()`.
+/// Watches Fn double-taps and Escape globally.
 final class HotkeyMonitor {
-    enum Event { case pressed, released }
+    enum Event {
+        case toggleRecording
+        case cancelRecording
+    }
+
     enum HotkeyError: Error { case tapCreateFailed }
 
-    /// Mask of the modifier we treat as the hotkey. Fn = `.maskSecondaryFn`.
+    private static let escapeKeyCode: Int64 = 53
+
     private let mask: CGEventFlags
     private let debug: Bool
     private var onEvent: ((Event) -> Void)?
     private var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var isPressed = false
+    private var doubleTap = DoubleTapRecognizer(maxInterval: 0.35)
+    private var eventPolicy = HotkeyEventPolicy()
+    private let policyLock = NSLock()
 
     init(mask: CGEventFlags = .maskSecondaryFn, debug: Bool = false) {
         self.mask = mask
@@ -47,7 +53,7 @@ final class HotkeyMonitor {
             let tap = CGEvent.tapCreate(
                 tap: .cgSessionEventTap,
                 place: .headInsertEventTap,
-                options: .listenOnly,
+                options: .defaultTap,
                 eventsOfInterest: mask,
                 callback: hotkeyCallback,
                 userInfo: userInfo
@@ -76,7 +82,13 @@ final class HotkeyMonitor {
         onEvent = nil
     }
 
-    fileprivate func handle(type: CGEventType, event: CGEvent) {
+    func setCancellationEnabled(_ enabled: Bool) {
+        policyLock.lock()
+        eventPolicy.cancellationEnabled = enabled
+        policyLock.unlock()
+    }
+
+    fileprivate func handle(type: CGEventType, event: CGEvent) -> Bool {
         if debug {
             let flags = event.flags
             let keycode = event.getIntegerValueField(.keyboardEventKeycode)
@@ -86,11 +98,50 @@ final class HotkeyMonitor {
                         .utf8
                 ))
         }
-        guard type == .flagsChanged else { return }
+
+        let keycode = event.getIntegerValueField(.keyboardEventKeycode)
+        if keycode == Self.escapeKeyCode {
+            let disposition: EscapeDisposition
+            policyLock.lock()
+            switch type {
+            case .keyDown:
+                disposition = eventPolicy.escapeKeyDown()
+            case .keyUp:
+                disposition = eventPolicy.escapeKeyUp()
+            default:
+                disposition = .passThrough
+            }
+            policyLock.unlock()
+
+            if disposition == .cancelAndConsume {
+                emit(.cancelRecording)
+            }
+            return disposition != .passThrough
+        }
+
+        guard type == .flagsChanged else { return false }
         let pressed = event.flags.contains(mask)
-        guard pressed != isPressed else { return }
+        guard pressed != isPressed else { return false }
         isPressed = pressed
-        onEvent?(pressed ? .pressed : .released)
+        if !pressed {
+            let timestamp = TimeInterval(event.timestamp) / 1_000_000_000
+            if doubleTap.registerTap(at: timestamp) {
+                emit(.toggleRecording)
+            }
+        }
+        return false
+    }
+
+    fileprivate func reenableTap() {
+        if let tap {
+            CGEvent.tapEnable(tap: tap, enable: true)
+        }
+    }
+
+    private func emit(_ event: Event) {
+        DispatchQueue.main.async { [weak self] in
+            self?.onEvent?(event)
+        }
     }
 }
 
@@ -104,16 +155,12 @@ private func hotkeyCallback(
     let monitor = Unmanaged<HotkeyMonitor>.fromOpaque(userInfo).takeUnretainedValue()
 
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-        // System disabled our tap; we'll need to re-enable. For now just no-op
-        // and let the user restart parrot.
+        monitor.reenableTap()
         return Unmanaged.passUnretained(event)
     }
 
-    let copy = event.copy()
-    DispatchQueue.main.async {
-        if let copy {
-            monitor.handle(type: type, event: copy)
-        }
+    if monitor.handle(type: type, event: event) {
+        return nil
     }
     return Unmanaged.passUnretained(event)
 }
