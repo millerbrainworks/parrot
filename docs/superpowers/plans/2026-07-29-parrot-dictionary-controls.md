@@ -918,7 +918,7 @@ LaunchAgent remains running.
 - Modify: `Tests/parrotTests/VocabularyPromptBuilderTests.swift`
 - Modify: `Sources/parrot/Transcription/VocabularyPromptBuilder.swift`
 
-- [ ] **Step 1: Require WhisperKit-compatible prompt text**
+- [x] **Step 1: Require WhisperKit-compatible prompt text**
 
 Change the prompt-builder test to assert that the encoder receives a leading
 space:
@@ -927,7 +927,7 @@ space:
 XCTAssertEqual(encodedText, " Arcqtype, ARQ")
 ```
 
-- [ ] **Step 2: Run the focused test and verify the regression**
+- [x] **Step 2: Run the focused test and verify the regression**
 
 Run:
 
@@ -937,19 +937,19 @@ swift test --filter VocabularyPromptBuilderTests
 
 Expected: FAIL because the encoder currently receives `Arcqtype, ARQ`.
 
-- [ ] **Step 3: Add the leading space**
+- [x] **Step 3: Add the leading space**
 
 Encode `" " + uniqueTerms.joined(separator: ", ")` while retaining the
 existing deduplication and token cap.
 
-- [ ] **Step 4: Run focused and deterministic transcription tests**
+- [x] **Step 4: Run focused and deterministic transcription tests**
 
 Run the prompt-builder test, then the local synthetic-audio diagnostic that
 previously returned an empty prompted transcript.
 
 Expected: both the builder test and prompted transcription pass.
 
-- [ ] **Step 5: Commit the regression fix**
+- [x] **Step 5: Commit the regression fix**
 
 ```bash
 git add Sources/parrot/Transcription/VocabularyPromptBuilder.swift Tests/parrotTests/VocabularyPromptBuilderTests.swift
@@ -962,7 +962,7 @@ git commit -m "fix: preserve transcription with vocabulary prompts"
 - Modify: `Sources/parrot/UI/RecordingOverlay.swift`
 - Modify: `Tests/parrotTests/RecordingOverlayModelTests.swift`
 
-- [ ] **Step 1: Add failing geometry assertions**
+- [x] **Step 1: Add failing geometry assertions**
 
 Expose immutable overlay geometry and assert:
 
@@ -973,7 +973,7 @@ XCTAssertEqual(RecordingOverlay.Geometry.buttonWidth, 52)
 XCTAssertEqual(RecordingOverlay.Geometry.waveformWidth, 88)
 ```
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run:
 
@@ -983,14 +983,14 @@ swift test --filter RecordingOverlayModelTests
 
 Expected: compilation fails because `Geometry` is not defined.
 
-- [ ] **Step 3: Implement proportional geometry**
+- [x] **Step 3: Implement proportional geometry**
 
 Add the immutable constants and use them for the panel, SwiftUI content,
 buttons, and waveform. Double icon size, waveform height, waveform bar width,
 and waveform spacing while retaining the same capsule, bottom-center position,
 click behavior, and non-activating focus behavior.
 
-- [ ] **Step 4: Run focused and full verification**
+- [x] **Step 4: Run focused and full verification**
 
 Run:
 
@@ -1002,7 +1002,7 @@ swift build -c release
 
 Expected: all tests and the release build pass.
 
-- [ ] **Step 5: Commit the resize**
+- [x] **Step 5: Commit the resize**
 
 ```bash
 git add Sources/parrot/UI/RecordingOverlay.swift Tests/parrotTests/RecordingOverlayModelTests.swift

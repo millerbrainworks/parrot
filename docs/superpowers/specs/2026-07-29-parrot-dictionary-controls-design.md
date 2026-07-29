@@ -265,9 +265,12 @@ Personal terms are also supplied to Whisper as prompt vocabulary when the
 installed WhisperKit API supports prompt tokens. Prompt bias is an aid, not the
 source of truth: deterministic post-processing remains responsible for
 canonical variants. Prompt text follows WhisperKit's native CLI convention:
-it begins with one leading space and excludes special tokens. This prevents a
-non-empty vocabulary from yielding an empty transcription. If prompt token
-construction fails, transcription continues without bias.
+it begins with one leading space and excludes special tokens. Prompted
+decoding also disables WhisperKit's first-token confidence cutoff because
+that cutoff otherwise evaluates a forced prompt token and terminates decoding
+before speech output. The average-confidence, no-speech, and temperature
+fallback safeguards remain enabled. If prompt token construction fails,
+transcription continues without bias.
 
 Only the final processed text is written to history and inserted. Diagnostic
 logs never include raw text, processed text, dictionary entries, or correction
