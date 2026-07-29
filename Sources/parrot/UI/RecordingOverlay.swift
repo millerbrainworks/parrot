@@ -1,10 +1,14 @@
 import AppKit
 import SwiftUI
 
-/// Borderless, click-through pill near the bottom of the active screen.
-/// Driven by the daemon's hotkey + transcription lifecycle.
+/// Borderless, non-activating recording controls near the bottom of the active screen.
 @MainActor
 final class RecordingOverlay {
+    enum Action: Equatable {
+        case cancel
+        case finish
+    }
+
     enum State: Equatable {
         case hidden
         case recording
@@ -12,7 +16,15 @@ final class RecordingOverlay {
     }
 
     private var window: NSPanel?
-    private let model = OverlayModel()
+    private let model: OverlayModel
+
+    init(onAction: @escaping (Action) -> Void = { _ in }) {
+        model = OverlayModel(onAction: onAction)
+    }
+
+    func setActionHandler(_ handler: @escaping (Action) -> Void) {
+        model.setActionHandler(handler)
+    }
 
     func show(_ state: State) {
         ensureWindow()
@@ -54,7 +66,7 @@ final class RecordingOverlay {
     private func ensureWindow() {
         if window != nil { return }
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 96, height: 44),
+            contentRect: NSRect(x: 0, y: 0, width: 96, height: 20),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -64,7 +76,8 @@ final class RecordingOverlay {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
-        panel.ignoresMouseEvents = true
+        panel.ignoresMouseEvents = false
+        panel.becomesKeyOnlyIfNeeded = true
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
 
@@ -95,6 +108,23 @@ final class OverlayModel: ObservableObject {
 
     @Published var state: RecordingOverlay.State = .hidden
     @Published var levels: [Float] = Array(repeating: 0, count: barCount)
+    private var onAction: (RecordingOverlay.Action) -> Void
+
+    init(onAction: @escaping (RecordingOverlay.Action) -> Void = { _ in }) {
+        self.onAction = onAction
+    }
+
+    func setActionHandler(_ handler: @escaping (RecordingOverlay.Action) -> Void) {
+        onAction = handler
+    }
+
+    func cancel() {
+        onAction(.cancel)
+    }
+
+    func finish() {
+        onAction(.finish)
+    }
 
     func pushLevel(_ level: Float) {
         let shaped = min(1.0, sqrt(max(0, level)) * 3.4)
@@ -118,8 +148,7 @@ private struct OverlayPill: View {
 
     var body: some View {
         content
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
+            .frame(width: 96, height: 20)
             .background(
                 Capsule()
                     .fill(Color(red: 16/255, green: 18/255, blue: 18/255))
@@ -135,13 +164,36 @@ private struct OverlayPill: View {
     private var content: some View {
         switch model.state {
         case .hidden, .recording:
-            Waveform(levels: model.levels)
-                .frame(width: 54, height: 22)
+            HStack(spacing: 0) {
+                Button(action: model.cancel) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.red)
+                        .frame(width: 26, height: 20)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
+
+                Waveform(levels: model.levels)
+                    .frame(width: 44, height: 14)
+
+                Button(action: model.finish) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.green)
+                        .frame(width: 26, height: 20)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
+            }
+            .frame(width: 96, height: 20)
         case .transcribing:
             ProgressView()
                 .controlSize(.small)
-                .scaleEffect(0.8)
-                .frame(width: 54, height: 22)
+                .scaleEffect(0.65)
+                .frame(width: 96, height: 20)
         }
     }
 }
@@ -151,11 +203,11 @@ private struct Waveform: View {
     private let color = Color(red: 181/255.0, green: 209/255.0, blue: 255/255.0)
 
     var body: some View {
-        HStack(alignment: .center, spacing: 4) {
+        HStack(alignment: .center, spacing: 2) {
             ForEach(Array(levels.enumerated()), id: \.offset) { _, level in
                 Capsule()
                     .fill(color)
-                    .frame(width: 2.5)
+                    .frame(width: 2)
                     .frame(maxHeight: .infinity)
                     .scaleEffect(y: max(0.10, CGFloat(level)), anchor: .center)
                     .animation(.easeOut(duration: 0.09), value: level)

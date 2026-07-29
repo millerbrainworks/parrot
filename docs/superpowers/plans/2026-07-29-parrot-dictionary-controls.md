@@ -506,7 +506,7 @@ git commit -m "feat: apply vocabulary before dictation insertion"
 - Modify: `Sources/parrot/Parrot.swift`
 - Create: `Tests/parrotTests/RecordingOverlayModelTests.swift`
 
-- [ ] **Step 1: Write failing overlay-model callback tests**
+- [x] **Step 1: Write failing overlay-model callback tests**
 
 Make overlay actions testable without displaying a window:
 
@@ -521,7 +521,7 @@ func testRecordingActionsCallInjectedHandlers() {
 }
 ```
 
-- [ ] **Step 2: Run the focused test and confirm RED**
+- [x] **Step 2: Run the focused test and confirm RED**
 
 Run:
 
@@ -531,7 +531,7 @@ swift test --filter RecordingOverlayModelTests
 
 Expected: compilation fails because overlay actions and handlers do not exist.
 
-- [ ] **Step 3: Implement the non-activating interactive panel**
+- [x] **Step 3: Implement the non-activating interactive panel**
 
 Give `RecordingOverlay` `onCancel` and `onFinish` closures. Set the panel frame
 to exactly `96 × 20`, `panel.ignoresMouseEvents = false`, and keep
@@ -564,7 +564,7 @@ actions cannot be clicked in a busy state. In `Parrot.swift`, route callbacks
 to `controller.handle(.cancelRecording)` and
 `controller.handle(.finishRecording)` on the main actor.
 
-- [ ] **Step 4: Run focused and full tests and confirm GREEN**
+- [x] **Step 4: Run focused and full tests and confirm GREEN**
 
 Run:
 
@@ -575,7 +575,7 @@ swift test
 
 Expected: all tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Sources/parrot/UI/RecordingOverlay.swift Sources/parrot/Parrot.swift Tests/parrotTests/RecordingOverlayModelTests.swift

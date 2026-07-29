@@ -156,7 +156,7 @@ struct Run: ParsableCommand {
                         case .recording:
                             overlay?.show(.recording)
                         case .transcribing:
-                            overlay?.show(.transcribing)
+                            overlay?.hide()
                         case .injecting:
                             break
                         case .idle:
@@ -167,6 +167,16 @@ struct Run: ParsableCommand {
                 dumpWav: dumpWav,
                 logger: logger
             )
+        }
+        MainActor.assumeIsolated {
+            overlay?.setActionHandler { [weak controller] action in
+                switch action {
+                case .cancel:
+                    controller?.handle(.cancelRecording)
+                case .finish:
+                    controller?.handle(.finishRecording)
+                }
+            }
         }
 
         do {
