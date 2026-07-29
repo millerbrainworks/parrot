@@ -1,7 +1,7 @@
 # Parrot — personal system dictation
 
-A private macOS dictation daemon. Double-tap Fn to start recording, double-tap
-again to transcribe and insert at the cursor, or press Escape to cancel.
+A private macOS dictation daemon. Double-tap Fn to start recording, tap Fn once
+to transcribe and insert at the cursor, or press Escape to cancel.
 Transcription runs on-device.
 
 ## Requirements
@@ -13,14 +13,16 @@ Transcription runs on-device.
 ## How to use
 
 1. Focus a text field in Codex or any other app.
-2. Double-tap Fn. The recording pill appears and remains active through silence.
+2. Double-tap Fn. The 96×20 recording bar appears and remains active through
+   silence.
 3. Speak.
-4. Double-tap Fn again. Parrot transcribes, saves a history entry, and inserts
-   the text at the current cursor.
-5. Press Escape instead if you want to discard the recording.
+4. Tap Fn once or click `✓`. Parrot transcribes, processes your personal
+   vocabulary, saves a history entry, and inserts the text at the current
+   cursor.
+5. Press Escape or click `×` instead to discard the recording.
 
-Single Fn taps do nothing in Parrot. While Parrot is transcribing or inserting,
-additional gestures are ignored.
+A single Fn tap does nothing while Parrot is idle. While Parrot is transcribing
+or inserting, additional gestures are ignored.
 
 Set System Settings → Keyboard → “Press 🌐 key to” to “Do Nothing” so macOS
 does not perform another action on Fn.
@@ -32,12 +34,45 @@ current state and model and provides:
 
 - System Default or a specific microphone
 - Open Today’s History
+- Open Personal Dictionary
 - launch-at-login status
 - permission guidance
 - Quit
 
 A missing saved microphone falls back to System Default while retaining the
 saved device preference for reconnection.
+
+## Personal dictionary and filler cleanup
+
+Parrot creates and reloads this private file before every transcription:
+
+```text
+~/Library/Application Support/Parrot/personal-dictionary.json
+```
+
+Its `terms` array biases Whisper toward your preferred vocabulary.
+`replacements` maps multiple recognized variants to one canonical spelling:
+
+```json
+{
+  "canonical": "Arcqtype",
+  "variants": ["archetype", "arc type", "ark type"]
+}
+```
+
+Matching is case-insensitive, respects word boundaries, preserves surrounding
+punctuation, and applies longer phrases first. The starter `fillerWords` list
+removes only standalone `um`, `uh`, `erm`, and `ah`; it preserves phrases such
+as `actually`, `like`, `you know`, and `I mean`.
+
+If you correct one localized word or phrase shortly after insertion, supported
+text fields show a Learn/Ignore popover beneath the menu-bar bird. Parrot
+updates the dictionary only after Learn. Observation lasts at most 30 seconds,
+is restricted to the freshly inserted range, and is disabled for secure fields
+and apps that do not expose a safe Accessibility text range.
+
+Invalid JSON never disables dictation. Parrot keeps using its last valid
+dictionary and shows a menu warning without overwriting the invalid file.
 
 ## History and privacy
 
@@ -50,8 +85,9 @@ Completed dictations are appended to private daily Markdown files:
 Entries include local time, destination application, and dictated text.
 Canceled and empty recordings are not saved. Raw audio remains in memory and is
 discarded after transcription or cancellation. Diagnostic logs do not contain
-transcripts. The explicit `--dump-wav` debugging flag is the only option that
-writes captured audio.
+transcripts, dictionary entries, field contents, or learning proposals. The
+explicit `--dump-wav` debugging flag is the only option that writes captured
+audio.
 
 ## Build and install
 
@@ -93,4 +129,5 @@ parrot --dump-wav                       # debug only: write /tmp/parrot-last.wav
 
 See [docs/architecture.md](docs/architecture.md) for upstream design notes and
 [the customization specification](docs/superpowers/specs/2026-07-29-parrot-system-dictation-design.md)
+plus [the recording and dictionary specification](docs/superpowers/specs/2026-07-29-parrot-dictionary-controls-design.md)
 for this implementation.

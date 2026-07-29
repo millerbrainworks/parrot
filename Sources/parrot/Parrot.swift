@@ -7,7 +7,7 @@ import WhisperKit
 struct Parrot: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "parrot",
-        abstract: "Minimal macOS dictation daemon. Double-tap Fn to start and stop.",
+        abstract: "Minimal macOS dictation daemon. Double-tap Fn to start; tap Fn to finish.",
         subcommands: [Run.self, Setup.self, Doctor.self, Models.self, Install.self],
         defaultSubcommand: Run.self
     )
@@ -241,7 +241,7 @@ struct Run: ParsableCommand {
         signal(SIGINT, SIG_IGN)
 
         FileHandle.standardError.write(
-            Data("listening for fn double-tap · model: \(chosenModel.id) · ^C to quit\n".utf8)
+            Data("listening for fn double-tap start and single-tap finish · model: \(chosenModel.id) · ^C to quit\n".utf8)
         )
         app.run()
     }

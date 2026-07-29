@@ -13,7 +13,7 @@ struct Setup: ParsableCommand {
         print("============")
         print()
         print("Parrot needs two permissions:")
-        print("  1. Accessibility — to detect Fn double-taps, consume Escape, and insert text.")
+        print("  1. Accessibility — to detect Fn start/finish gestures, consume Escape, and insert text.")
         print("  2. Microphone — to record audio during an active dictation.")
         print()
         print("macOS may list Parrot or the app that launched it. This command verifies the result.")

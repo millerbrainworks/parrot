@@ -809,7 +809,7 @@ git commit -m "feat: confirm learned dictation corrections"
 - Modify: `README.md`
 - Modify if needed: `Sources/parrot/Parrot.swift`
 
-- [ ] **Step 1: Update user-facing documentation**
+- [x] **Step 1: Update user-facing documentation**
 
 Document:
 
@@ -822,7 +822,7 @@ Document:
 - secure/unsupported fields skip learning; and
 - history and diagnostic-log privacy guarantees.
 
-- [ ] **Step 2: Run source hygiene and complete tests**
+- [x] **Step 2: Run source hygiene and complete tests**
 
 Run:
 
@@ -835,7 +835,7 @@ rg -n 'print\\(.*(text|transcript|proposal)|logger\\..*(text|transcript|proposal
 Expected: no whitespace errors, every test passes, and the content-leak scan
 has no unsafe diagnostic logging.
 
-- [ ] **Step 3: Build release and sign the exact artifact**
+- [x] **Step 3: Build release and sign the exact artifact**
 
 Run:
 
@@ -848,7 +848,7 @@ codesign --verify --verbose=2 .build/release/parrot
 Expected: release build succeeds and codesign verification reports the binary
 is valid on disk.
 
-- [ ] **Step 4: Install and restart the existing LaunchAgent**
+- [x] **Step 4: Install and restart the existing LaunchAgent**
 
 Run:
 
@@ -865,7 +865,7 @@ Expected: the installed binary verifies and the service reports a running PID.
 If Accessibility or Microphone access is denied after re-signing, stop and ask
 the user to approve that exact permission before continuing.
 
-- [ ] **Step 5: Verify private files and content-free diagnostics**
+- [x] **Step 5: Verify private files and content-free diagnostics**
 
 Run:
 
