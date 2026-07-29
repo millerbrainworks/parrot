@@ -1,59 +1,96 @@
-# parrot
+# Parrot — personal system dictation
 
-A minimal macOS dictation daemon. Push-to-talk, on-device transcription, text inserted at the cursor.
+A private macOS dictation daemon. Double-tap Fn to start recording, double-tap
+again to transcribe and insert at the cursor, or press Escape to cancel.
+Transcription runs on-device.
 
-## Install
+## Requirements
 
-```sh
-curl -fsSL https://digimata.github.io/parrot/install.sh | sh
-parrot setup                       # grants mic + accessibility, downloads the model
-parrot install --launch-at-login   # optional — runs in the background on login
-```
-
-**Requires:** macOS 14+ on Apple Silicon (M1 or newer). Transcription runs on the Apple Neural Engine via CoreML — so the installer refuses to run on Intel.
-
-The installer drops the binary in `/usr/local/bin/parrot`. Builds are unsigned for now, so the installer strips the quarantine xattr — once you've inspected the script you'll see exactly what it does.
+- macOS 14 or newer
+- Apple Silicon
+- Swift toolchain capable of building Swift 5.9 packages
 
 ## How to use
 
-1. **Run it.** Either `parrot install --launch-at-login` (daemonized, runs forever, lives in the menu bar), or `parrot` in any terminal tab.
-2. **Click into the text field you want to dictate into** — Messages, the address bar, a Slack thread, anywhere a cursor blinks.
-3. **Hold the `fn` key, speak, release.** A small pill appears at the bottom of the screen while the mic is hot.
-4. **The transcript types itself in at the cursor** when you release. Usually within 200-300ms.
+1. Focus a text field in Codex or any other app.
+2. Double-tap Fn. The recording pill appears and remains active through silence.
+3. Speak.
+4. Double-tap Fn again. Parrot transcribes, saves a history entry, and inserts
+   the text at the current cursor.
+5. Press Escape instead if you want to discard the recording.
 
-That's it. There is no record button, no stop button, no "send" — `fn` is the whole interface.
+Single Fn taps do nothing in Parrot. While Parrot is transcribing or inserting,
+additional gestures are ignored.
 
-> **Note:** on most modern Macs the `fn` key is the bottom-left key. If yours is set to "Change input source" or "Show emoji & symbols," `parrot setup` will tell you how to flip it back to plain `fn`.
+Set System Settings → Keyboard → “Press 🌐 key to” to “Do Nothing” so macOS
+does not perform another action on Fn.
+
+## Menu bar
+
+Parrot lives in the top-right menu bar and starts at login. The menu shows its
+current state and model and provides:
+
+- System Default or a specific microphone
+- Open Today’s History
+- launch-at-login status
+- permission guidance
+- Quit
+
+A missing saved microphone falls back to System Default while retaining the
+saved device preference for reconnection.
+
+## History and privacy
+
+Completed dictations are appended to private daily Markdown files:
+
+```text
+~/Library/Application Support/Parrot/history/YYYY/MM/YYYY-MM-DD.md
+```
+
+Entries include local time, destination application, and dictated text.
+Canceled and empty recordings are not saved. Raw audio remains in memory and is
+discarded after transcription or cancellation. Diagnostic logs do not contain
+transcripts. The explicit `--dump-wav` debugging flag is the only option that
+writes captured audio.
+
+## Build and install
+
+```sh
+swift test
+swift build -c release
+mkdir -p ~/.local/bin
+cp .build/release/parrot ~/.local/bin/parrot
+chmod +x ~/.local/bin/parrot
+~/.local/bin/parrot setup
+~/.local/bin/parrot install --launch-at-login
+```
+
+The first setup requires interactive Microphone and Accessibility approval.
+Parrot then runs through `~/Library/LaunchAgents/com.digimata.parrot.plist`.
 
 ## CLI
 
 ```sh
-parrot                                 # run in the foreground (^C to quit)
-parrot setup                           # one-time setup: permissions + model download
-parrot install --launch-at-login       # register a LaunchAgent (background daemon)
-parrot install --uninstall             # remove the LaunchAgent
-parrot doctor                          # check permissions + fn key setting
-parrot models list                     # list available models
-parrot models download <id>            # pre-download a model
-parrot --model whisper-large-v3-turbo  # bigger, multilingual, slower first-run
-parrot --hotkey right-option           # change the push-to-talk key
-parrot --no-overlay                    # disable the bottom-of-screen pill
+parrot                                  # run in the foreground
+parrot setup                            # request and verify permissions
+parrot install --launch-at-login        # register and start the LaunchAgent
+parrot install --uninstall              # remove the LaunchAgent
+parrot doctor                           # check permissions and Fn configuration
+parrot models list                      # list transcription models
+parrot models download <id>             # download a model
+parrot --model whisper-large-v3-turbo   # choose a model
+parrot --no-overlay                     # disable the recording pill
+parrot --dump-wav                       # debug only: write /tmp/parrot-last.wav
 ```
 
 ## Stack
 
-- **Swift** — single SPM executable target
-- **WhisperKit** — Whisper inference via CoreML, ANE-accelerated
-- **AVAudioEngine** — mic capture
-- **CGEventTap** — global hotkey
-- **CGEvent** — text injection at cursor
-- **NSWindow** (borderless, click-through) — recording-indicator pill
+- Swift Package Manager
+- WhisperKit and CoreML
+- AVAudioEngine and CoreAudio
+- CGEventTap and CGEvent
+- AppKit and SwiftUI
 
-See [docs/architecture.md](docs/architecture.md) for design notes.
-
-## Build from source
-
-```sh
-swift build -c release
-.build/release/parrot --help
-```
+See [docs/architecture.md](docs/architecture.md) for upstream design notes and
+[the customization specification](docs/superpowers/specs/2026-07-29-parrot-system-dictation-design.md)
+for this implementation.

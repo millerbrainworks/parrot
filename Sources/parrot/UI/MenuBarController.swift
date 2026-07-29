@@ -219,12 +219,18 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func permissionsClicked() {
-        guard let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-        ) else {
-            return
+        let checks = DoctorReport.run()
+        let microphoneNeedsAttention = checks.contains { check in
+            guard check.name == "microphone" else { return false }
+            if case .ok = check.status { return false }
+            return true
         }
-        NSWorkspace.shared.open(url)
+        let pane = microphoneNeedsAttention ? "Privacy_Microphone" : "Privacy_Accessibility"
+        if let url = URL(
+            string: "x-apple.systempreferences:com.apple.preference.security?\(pane)"
+        ) {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     @objc private func quitClicked() {

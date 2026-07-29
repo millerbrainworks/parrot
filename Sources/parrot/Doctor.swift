@@ -32,14 +32,14 @@ enum DoctorReport {
         case .notDetermined:
             return Check(
                 name: "microphone",
-                status: .warn("not yet requested — will prompt on first recording"),
-                remediation: "run parrot and hold Fn once; macOS will prompt"
+                status: .warn("not yet requested"),
+                remediation: "run `parrot setup` to request access"
             )
         case .denied, .restricted:
             return Check(
                 name: "microphone",
                 status: .fail("denied"),
-                remediation: "System Settings → Privacy & Security → Microphone → enable for your terminal"
+                remediation: "System Settings → Privacy & Security → Microphone → enable Parrot or its launcher"
             )
         @unknown default:
             return Check(name: "microphone", status: .fail("unknown state"), remediation: nil)
@@ -50,11 +50,10 @@ enum DoctorReport {
         if AXIsProcessTrusted() {
             return Check(name: "accessibility", status: .ok, remediation: nil)
         }
-        let parent = parentProcessName() ?? "your terminal"
         return Check(
             name: "accessibility",
             status: .fail("not granted"),
-            remediation: "System Settings → Privacy & Security → Accessibility → enable for \(parent)"
+            remediation: "System Settings → Privacy & Security → Accessibility → enable Parrot or \(parentProcessName() ?? "its launcher")"
         )
     }
 

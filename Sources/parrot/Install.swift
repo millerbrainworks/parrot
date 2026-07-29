@@ -4,8 +4,8 @@ import Foundation
 /// Manage parrot's LaunchAgent so the daemon starts at login.
 ///
 /// We deliberately do NOT use SMAppService.mainApp here — that requires a full
-/// .app bundle. Since parrot ships as a single binary in /usr/local/bin, a
-/// plain LaunchAgent plist is the simpler, more honest mechanism.
+/// .app bundle. Since parrot ships as a single user-local binary, a plain
+/// LaunchAgent plist is the simplest mechanism.
 struct Install: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Install or remove the launch-at-login LaunchAgent."
@@ -95,22 +95,24 @@ struct Install: ParsableCommand {
     }
 
     private func resolveBinaryPath() throws -> String {
-        // /usr/local/bin/parrot is the canonical install path. Honor a real
-        // location if running from elsewhere (e.g. dev).
-        let candidate = "/usr/local/bin/parrot"
-        if FileManager.default.isExecutableFile(atPath: candidate) {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let candidates = [
+            home.appendingPathComponent(".local/bin/parrot").path,
+            "/usr/local/bin/parrot",
+        ]
+        for candidate in candidates where FileManager.default.isExecutableFile(atPath: candidate) {
             return candidate
         }
-        // Fall back to the running executable's resolved path.
+
         let argv0 = CommandLine.arguments.first ?? "parrot"
         if argv0.hasPrefix("/"), FileManager.default.isExecutableFile(atPath: argv0) {
             FileHandle.standardError.write(Data(
-                "note: /usr/local/bin/parrot not found; using \(argv0)\n".utf8
+                "note: installed parrot not found; using \(argv0)\n".utf8
             ))
             return argv0
         }
         FileHandle.standardError.write(Data(
-            "couldn't locate the parrot binary. install it to /usr/local/bin/parrot first.\n".utf8
+            "couldn't locate parrot. install it to ~/.local/bin/parrot first.\n".utf8
         ))
         throw ExitCode(1)
     }

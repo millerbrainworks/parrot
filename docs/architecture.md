@@ -1,5 +1,9 @@
 # Architecture
 
+> This upstream architecture document describes the original hold-to-talk
+> design. The implemented personal customization is specified in
+> `docs/superpowers/specs/2026-07-29-parrot-system-dictation-design.md`.
+
 ## Goals
 
 1. **CLI executable.** Single binary, launched from the terminal. No menubar, no dock icon, no settings window.
