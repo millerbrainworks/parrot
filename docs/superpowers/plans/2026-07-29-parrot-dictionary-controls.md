@@ -917,6 +917,8 @@ LaunchAgent remains running.
 **Files:**
 - Modify: `Tests/parrotTests/VocabularyPromptBuilderTests.swift`
 - Modify: `Sources/parrot/Transcription/VocabularyPromptBuilder.swift`
+- Modify: `Tests/parrotTests/WhisperKitTranscriberTests.swift`
+- Modify: `Sources/parrot/Transcription/WhisperKitTranscriber.swift`
 
 - [x] **Step 1: Require WhisperKit-compatible prompt text**
 
@@ -937,22 +939,27 @@ swift test --filter VocabularyPromptBuilderTests
 
 Expected: FAIL because the encoder currently receives `Arcqtype, ARQ`.
 
-- [x] **Step 3: Add the leading space**
+- [x] **Step 3: Add compatible prompt and decoding options**
 
 Encode `" " + uniqueTerms.joined(separator: ", ")` while retaining the
-existing deduplication and token cap.
+existing deduplication and token cap. Build prompted `DecodingOptions` with
+`firstTokenLogProbThreshold: nil` so WhisperKit does not terminate after
+evaluating the forced prompt token. Preserve the average-confidence,
+no-speech, and temperature-fallback safeguards and cover them in the permanent
+transcriber-options test.
 
 - [x] **Step 4: Run focused and deterministic transcription tests**
 
 Run the prompt-builder test, then the local synthetic-audio diagnostic that
 previously returned an empty prompted transcript.
 
-Expected: both the builder test and prompted transcription pass.
+Expected: the builder and options tests pass; full-vocabulary synthetic speech
+produces non-empty text while deterministic silence remains empty.
 
 - [x] **Step 5: Commit the regression fix**
 
 ```bash
-git add Sources/parrot/Transcription/VocabularyPromptBuilder.swift Tests/parrotTests/VocabularyPromptBuilderTests.swift
+git add Sources/parrot/Transcription/VocabularyPromptBuilder.swift Sources/parrot/Transcription/WhisperKitTranscriber.swift Tests/parrotTests/VocabularyPromptBuilderTests.swift Tests/parrotTests/WhisperKitTranscriberTests.swift
 git commit -m "fix: preserve transcription with vocabulary prompts"
 ```
 
