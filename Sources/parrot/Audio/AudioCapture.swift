@@ -1,4 +1,6 @@
 import AVFoundation
+import AudioToolbox
+import CoreAudio
 import Foundation
 
 /// Captures microphone audio while recording is active and returns a 16 kHz
@@ -8,6 +10,7 @@ final class AudioCapture {
     enum CaptureError: Error {
         case engineStartFailed(Error)
         case converterCreationFailed
+        case deviceSelectionFailed(OSStatus)
     }
 
     static let targetSampleRate: Double = 16_000
@@ -23,10 +26,27 @@ final class AudioCapture {
     var onLevel: ((Float) -> Void)?
 
     /// Begin recording. Idempotent — calling while already recording is a no-op.
-    func start() throws {
+    func start(deviceID: AudioDeviceID? = nil) throws {
         guard !isRecording else { return }
 
         let input = engine.inputNode
+        if let deviceID {
+            guard let audioUnit = input.audioUnit else {
+                throw CaptureError.deviceSelectionFailed(kAudio_ParamError)
+            }
+            var selectedDevice = deviceID
+            let status = AudioUnitSetProperty(
+                audioUnit,
+                kAudioOutputUnitProperty_CurrentDevice,
+                kAudioUnitScope_Global,
+                0,
+                &selectedDevice,
+                UInt32(MemoryLayout<AudioDeviceID>.size)
+            )
+            guard status == noErr else {
+                throw CaptureError.deviceSelectionFailed(status)
+            }
+        }
         let inputFormat = input.outputFormat(forBus: 0)
 
         let targetFormat = AVAudioFormat(
