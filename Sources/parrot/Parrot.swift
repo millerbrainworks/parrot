@@ -88,11 +88,19 @@ struct Run: ParsableCommand {
         if let overlay {
             capture.onLevel = { level in overlay.pushLevel(level) }
         }
-        let menuBar = MainActor.assumeIsolated { MenuBarController(modelID: chosenModel.id) }
         let historyWriter = HistoryWriter()
         let preferencesStore = PreferencesStore()
         let deviceCatalog = AudioDeviceCatalog()
         let logger = DiagnosticLogger()
+        let menuBar = MainActor.assumeIsolated {
+            MenuBarController(
+                modelID: chosenModel.id,
+                deviceCatalog: deviceCatalog,
+                preferencesStore: preferencesStore,
+                historyWriter: historyWriter,
+                logger: logger
+            )
+        }
         let controller = MainActor.assumeIsolated {
             DictationController(
                 dependencies: DictationDependencies(
@@ -131,16 +139,16 @@ struct Run: ParsableCommand {
                         monitor.setCancellationEnabled(enabled)
                     },
                     present: { state in
+                        menuBar.setState(state)
                         switch state {
                         case .recording:
                             overlay?.show(.recording)
-                            menuBar.setRecording(true)
-                        case .transcribing, .injecting:
+                        case .transcribing:
                             overlay?.show(.transcribing)
-                            menuBar.setTranscribing()
+                        case .injecting:
+                            break
                         case .idle:
                             overlay?.hide()
-                            menuBar.setRecording(false)
                         }
                     }
                 ),
