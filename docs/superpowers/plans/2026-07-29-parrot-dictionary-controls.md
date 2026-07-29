@@ -677,7 +677,7 @@ git commit -m "feat: detect localized dictation corrections"
 - Test: `Tests/parrotTests/MenuBarModelTests.swift`
 - Create: `Tests/parrotTests/CorrectionObservationPolicyTests.swift`
 
-- [ ] **Step 1: Write failing observation-policy and menu tests**
+- [x] **Step 1: Write failing observation-policy and menu tests**
 
 Extract time, focus, security, and bounds decisions into a pure policy:
 
@@ -702,7 +702,7 @@ func testRecordingMenuExplainsSingleTapFinishAndDictionaryWarning() {
 }
 ```
 
-- [ ] **Step 2: Run the focused tests and confirm RED**
+- [x] **Step 2: Run the focused tests and confirm RED**
 
 Run:
 
@@ -713,7 +713,7 @@ swift test --filter MenuBarModelTests
 
 Expected: compilation fails on the new policy and model field.
 
-- [ ] **Step 3: Implement bounded Accessibility observation**
+- [x] **Step 3: Implement bounded Accessibility observation**
 
 Before injection, capture the focused `AXUIElement`, its selected text range,
 role/subrole, and insertion start. Reject `AXSecureTextField` and secure
@@ -745,7 +745,7 @@ caret and accept only if exactly one candidate yields the same localized
 proposal. This supports corrections that change length without reading beyond
 the inserted range.
 
-- [ ] **Step 4: Implement the anchored confirmation popover**
+- [x] **Step 4: Implement the anchored confirmation popover**
 
 Expose the status-item button from `MenuBarController` as the popover anchor.
 Build `LearningPopoverController` with a transient SwiftUI/AppKit view:
@@ -769,7 +769,7 @@ create the starter if necessary and opens `store.fileURL`. Add a disabled
 `Personal Dictionary: Needs Attention ⚠` item only when a content-free warning
 is active.
 
-- [ ] **Step 5: Wire observation around insertion**
+- [x] **Step 5: Wire observation around insertion**
 
 Change text injection orchestration to:
 
@@ -783,7 +783,7 @@ Cancel any active observation when a recording begins. If preparation returns
 `nil`, insertion remains unchanged. On a proposal, present the popover and
 merge only after Learn.
 
-- [ ] **Step 6: Run focused and full tests and confirm GREEN**
+- [x] **Step 6: Run focused and full tests and confirm GREEN**
 
 Run:
 
@@ -795,7 +795,7 @@ swift test
 
 Expected: all tests pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add Sources/parrot/Learning Sources/parrot/UI Sources/parrot/Input/TextInjector.swift Sources/parrot/Session/DictationController.swift Sources/parrot/Parrot.swift Tests/parrotTests

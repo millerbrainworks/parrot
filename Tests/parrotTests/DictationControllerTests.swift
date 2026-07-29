@@ -146,6 +146,35 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(warnings, ["Personal Dictionary Needs Attention"])
     }
 
+    func testCorrectionObservationIsBoundedAroundInsertion() async {
+        let injected = expectation(description: "observation began")
+        var operations: [String] = []
+        let controller = makeController(
+            stopCapture: { [0.1] },
+            transcribe: { _, _ in "Fresh text" },
+            injectText: { text in operations.append("inject:\(text)") },
+            prepareCorrectionObservation: {
+                operations.append("prepare:\($0)")
+            },
+            beginCorrectionObservation: {
+                operations.append("begin")
+                injected.fulfill()
+            },
+            cancelCorrectionObservation: {
+                operations.append("cancel")
+            }
+        )
+
+        controller.handle(.startRecording)
+        controller.handle(.finishRecording)
+        await fulfillment(of: [injected], timeout: 1)
+
+        XCTAssertEqual(
+            operations,
+            ["cancel", "prepare:Fresh text", "inject:Fresh text", "begin"]
+        )
+    }
+
     private func makeController(
         startCapture: @escaping (AudioDeviceID?) throws -> Void = { _ in },
         stopCapture: @escaping () -> [Float] = { [] },
@@ -157,6 +186,9 @@ final class DictationControllerTests: XCTestCase {
         injectText: @escaping (String) -> Void = { _ in },
         setRecordingEnabled: @escaping (Bool) -> Void = { _ in },
         dictionaryWarningChanged: @escaping (String?) -> Void = { _ in },
+        prepareCorrectionObservation: @escaping (String) -> Void = { _ in },
+        beginCorrectionObservation: @escaping () -> Void = {},
+        cancelCorrectionObservation: @escaping () -> Void = {},
         present: @escaping (DictationState) -> Void = { _ in }
     ) -> DictationController {
         DictationController(
@@ -181,6 +213,9 @@ final class DictationControllerTests: XCTestCase {
                 injectText: injectText,
                 setRecordingEnabled: setRecordingEnabled,
                 dictionaryWarningChanged: dictionaryWarningChanged,
+                prepareCorrectionObservation: prepareCorrectionObservation,
+                beginCorrectionObservation: beginCorrectionObservation,
+                cancelCorrectionObservation: cancelCorrectionObservation,
                 present: present
             ),
             logger: DiagnosticLogger { _ in }

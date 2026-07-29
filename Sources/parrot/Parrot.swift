@@ -94,12 +94,19 @@ struct Run: ParsableCommand {
         let preferencesStore = PreferencesStore()
         let deviceCatalog = AudioDeviceCatalog()
         let logger = DiagnosticLogger()
+        let correctionObserver = MainActor.assumeIsolated {
+            CorrectionObserver()
+        }
+        let learningPopover = MainActor.assumeIsolated {
+            LearningPopoverController()
+        }
         let menuBar = MainActor.assumeIsolated {
             MenuBarController(
                 modelID: chosenModel.id,
                 deviceCatalog: deviceCatalog,
                 preferencesStore: preferencesStore,
                 historyWriter: historyWriter,
+                dictionaryStore: dictionaryStore,
                 logger: logger
             )
         }
@@ -149,7 +156,40 @@ struct Run: ParsableCommand {
                     setRecordingEnabled: { enabled in
                         monitor.setRecordingEnabled(enabled)
                     },
-                    dictionaryWarningChanged: { _ in },
+                    dictionaryWarningChanged: { warning in
+                        menuBar.setDictionaryWarning(warning)
+                    },
+                    prepareCorrectionObservation: { text in
+                        correctionObserver.prepare(text: text)
+                    },
+                    beginCorrectionObservation: {
+                        correctionObserver.begin { proposal in
+                            guard let anchor = menuBar.learningAnchor else {
+                                return
+                            }
+                            learningPopover.present(
+                                proposal,
+                                relativeTo: anchor
+                            ) {
+                                do {
+                                    try dictionaryStore.learn(
+                                        variant: proposal.original,
+                                        canonical: proposal.corrected
+                                    )
+                                    menuBar.setDictionaryWarning(nil)
+                                } catch {
+                                    menuBar.setDictionaryWarning(
+                                        "Personal Dictionary Needs Attention"
+                                    )
+                                    logger.message("personal dictionary learning failed")
+                                }
+                            }
+                        }
+                    },
+                    cancelCorrectionObservation: {
+                        correctionObserver.cancel()
+                        learningPopover.dismiss()
+                    },
                     present: { state in
                         menuBar.setState(state)
                         switch state {

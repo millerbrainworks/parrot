@@ -13,6 +13,9 @@ struct DictationDependencies {
     let injectText: (String) -> Void
     let setRecordingEnabled: (Bool) -> Void
     let dictionaryWarningChanged: (String?) -> Void
+    let prepareCorrectionObservation: (String) -> Void
+    let beginCorrectionObservation: () -> Void
+    let cancelCorrectionObservation: () -> Void
     let present: (DictationState) -> Void
 }
 
@@ -58,6 +61,7 @@ final class DictationController {
     }
 
     private func startCapture() {
+        dependencies.cancelCorrectionObservation()
         let device = dependencies.resolveDevice()
         do {
             try dependencies.startCapture(device.deviceID)
@@ -142,7 +146,9 @@ final class DictationController {
                 logger.message("history write failed: \(error)")
             }
 
+            dependencies.prepareCorrectionObservation(text)
             dependencies.injectText(text)
+            dependencies.beginCorrectionObservation()
             machine.finish()
             dependencies.present(.idle)
         } catch {

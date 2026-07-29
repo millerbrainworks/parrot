@@ -2,13 +2,14 @@ struct MenuBarModel: Equatable {
     var state: DictationState
     var microphoneName: String
     var microphoneFallback: Bool
+    var dictionaryWarning: String?
 
     var stateTitle: String {
         switch state {
         case .idle:
             return "Idle — double-tap Fn to dictate"
         case .recording:
-            return "● Recording — double-tap Fn to finish"
+            return "● Recording — tap Fn to finish"
         case .transcribing:
             return "Transcribing…"
         case .injecting:
@@ -22,5 +23,9 @@ struct MenuBarModel: Equatable {
 
     var canChangeMicrophone: Bool {
         state == .idle
+    }
+
+    var showsDictionaryWarning: Bool {
+        dictionaryWarning != nil
     }
 }

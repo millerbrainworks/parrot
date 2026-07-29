@@ -11,12 +11,15 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let microphoneItem: NSMenuItem
     private let microphoneMenu = NSMenu()
     private let historyItem: NSMenuItem
+    private let dictionaryItem: NSMenuItem
+    private let dictionaryWarningItem: NSMenuItem
     private let launchAtLoginItem: NSMenuItem
     private let permissionsItem: NSMenuItem
     private let modelID: String
     private let deviceCatalog: AudioDeviceCatalog
     private let preferencesStore: PreferencesStore
     private let historyWriter: HistoryWriter
+    private let dictionaryStore: PersonalDictionaryStore
     private let logger: DiagnosticLogger
     private var model: MenuBarModel
 
@@ -25,12 +28,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         deviceCatalog: AudioDeviceCatalog = AudioDeviceCatalog(),
         preferencesStore: PreferencesStore = PreferencesStore(),
         historyWriter: HistoryWriter = HistoryWriter(),
+        dictionaryStore: PersonalDictionaryStore = PersonalDictionaryStore(),
         logger: DiagnosticLogger = DiagnosticLogger()
     ) {
         self.modelID = modelID
         self.deviceCatalog = deviceCatalog
         self.preferencesStore = preferencesStore
         self.historyWriter = historyWriter
+        self.dictionaryStore = dictionaryStore
         self.logger = logger
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
@@ -38,10 +43,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             catalog: deviceCatalog,
             preferencesStore: preferencesStore
         )
+        let initialDictionary = dictionaryStore.loadUsingFallback()
         self.model = MenuBarModel(
             state: .idle,
             microphoneName: initialDevice.displayName,
-            microphoneFallback: initialDevice.isFallback
+            microphoneFallback: initialDevice.isFallback,
+            dictionaryWarning: initialDictionary.warning
         )
         self.stateLabel = NSMenuItem(title: model.stateTitle, action: nil, keyEquivalent: "")
         self.modelLabel = NSMenuItem(title: "Model: \(modelID)", action: nil, keyEquivalent: "")
@@ -53,6 +60,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         self.historyItem = NSMenuItem(
             title: "Open Today’s History",
             action: #selector(openHistoryClicked),
+            keyEquivalent: ""
+        )
+        self.dictionaryItem = NSMenuItem(
+            title: "Open Personal Dictionary",
+            action: #selector(openDictionaryClicked),
+            keyEquivalent: ""
+        )
+        self.dictionaryWarningItem = NSMenuItem(
+            title: "Personal Dictionary: Needs Attention ⚠",
+            action: nil,
             keyEquivalent: ""
         )
         self.launchAtLoginItem = NSMenuItem(
@@ -83,6 +100,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         historyItem.target = self
         menu.addItem(historyItem)
+
+        dictionaryItem.target = self
+        menu.addItem(dictionaryItem)
+
+        dictionaryWarningItem.isEnabled = false
+        menu.addItem(dictionaryWarningItem)
 
         launchAtLoginItem.isEnabled = false
         menu.addItem(launchAtLoginItem)
@@ -118,6 +141,15 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         microphoneItem.isEnabled = model.canChangeMicrophone
     }
 
+    func setDictionaryWarning(_ warning: String?) {
+        model.dictionaryWarning = warning
+        dictionaryWarningItem.isHidden = !model.showsDictionaryWarning
+    }
+
+    var learningAnchor: NSView? {
+        statusItem.button
+    }
+
     func menuWillOpen(_ menu: NSMenu) {
         refresh()
     }
@@ -139,6 +171,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         launchAtLoginItem.title = "Launch at Login: \(launchEnabled ? "On" : "Off")"
 
         permissionsItem.isHidden = DoctorReport.allClean(DoctorReport.run())
+
+        let dictionary = dictionaryStore.loadUsingFallback()
+        setDictionaryWarning(dictionary.warning)
     }
 
     private func rebuildMicrophoneMenu() {
@@ -216,6 +251,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         } catch {
             logger.message("history open failed: \(error)")
         }
+    }
+
+    @objc private func openDictionaryClicked() {
+        let result = dictionaryStore.loadUsingFallback()
+        setDictionaryWarning(result.warning)
+        NSWorkspace.shared.open(dictionaryStore.fileURL)
     }
 
     @objc private func permissionsClicked() {
