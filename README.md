@@ -26,9 +26,10 @@ or inserting, additional gestures are ignored.
 
 Separate dictations receive one context-aware boundary space when the cursor
 follows text. Parrot does not add a space at the start of a field, after
-existing whitespace, while replacing a selection, when cursor context is
-unavailable, or in protected controls. Unicode text is injected without
-splitting surrogate pairs.
+existing whitespace or an opening delimiter, before punctuation-only
+dictation, while replacing a selection, when cursor context is unavailable, or
+in protected controls. Unicode text is injected without splitting surrogate
+pairs.
 
 The recording bar is exactly 144×28 points, with `×` to cancel and `✓` to
 finish.
