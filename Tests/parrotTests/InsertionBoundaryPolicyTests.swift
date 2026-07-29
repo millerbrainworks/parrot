@@ -18,6 +18,65 @@ final class InsertionBoundaryPolicyTests: XCTestCase {
         )
     }
 
+    func testPrefixesExactlyOneSpaceAfterNumber() {
+        XCTAssertEqual(
+            policy.prepare("next", context: .caret(previous: "7")),
+            " next"
+        )
+    }
+
+    func testPrefixesExactlyOneSpaceAfterClosingDelimiters() {
+        XCTAssertEqual(
+            policy.prepare("next", context: .caret(previous: ")")),
+            " next"
+        )
+        XCTAssertEqual(
+            policy.prepare("next", context: .caret(previous: "]")),
+            " next"
+        )
+        XCTAssertEqual(
+            policy.prepare("next", context: .caret(previous: "}")),
+            " next"
+        )
+    }
+
+    func testPrefixesExactlyOneSpaceBeforeNumber() {
+        XCTAssertEqual(
+            policy.prepare("7 items", context: .caret(previous: ".")),
+            " 7 items"
+        )
+        XCTAssertEqual(
+            policy.prepare("7 items", context: .caret(previous: "d")),
+            " 7 items"
+        )
+    }
+
+    func testPrefixesExactlyOneSpaceBeforeOpeningQuotes() {
+        XCTAssertEqual(
+            policy.prepare("\"quoted\"", context: .caret(previous: ".")),
+            " \"quoted\""
+        )
+        XCTAssertEqual(
+            policy.prepare("'quoted'", context: .caret(previous: ".")),
+            " 'quoted'"
+        )
+        XCTAssertEqual(
+            policy.prepare("“quoted”", context: .caret(previous: ".")),
+            " “quoted”"
+        )
+        XCTAssertEqual(
+            policy.prepare("‘quoted’", context: .caret(previous: ".")),
+            " ‘quoted’"
+        )
+    }
+
+    func testPrefixesExactlyOneSpaceBeforeOpeningDelimiter() {
+        XCTAssertEqual(
+            policy.prepare("(aside)", context: .caret(previous: ".")),
+            " (aside)"
+        )
+    }
+
     func testPrefixesSpaceBetweenCommaAndWord() {
         XCTAssertEqual(
             policy.prepare("next", context: .caret(previous: ",")),
