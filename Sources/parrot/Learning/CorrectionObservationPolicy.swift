@@ -3,12 +3,102 @@ import Foundation
 struct CorrectionObservationPolicy {
     let timeout: TimeInterval
 
-    func canObserve(
+    func selectedRangeForPreparation(
+        access: AccessibilityTextAccess,
+        readSelectedRange: () -> CFRange?
+    ) -> CFRange? {
+        guard AccessibilityTextAccessResolver.allowsTextAccess(access) else {
+            return nil
+        }
+        guard let selection = readSelectedRange() else {
+            return nil
+        }
+        return CorrectionObservationRangePolicy.validatedSelection(selection)
+    }
+
+    func selectedRangeForPoll(
         elapsed: TimeInterval,
         sameElement: Bool,
-        secure: Bool
-    ) -> Bool {
-        elapsed <= timeout && sameElement && !secure
+        access: AccessibilityTextAccess,
+        readSelectedRange: () -> CFRange?
+    ) -> CFRange? {
+        guard
+            elapsed <= timeout,
+            sameElement,
+            AccessibilityTextAccessResolver.allowsTextAccess(access)
+        else {
+            return nil
+        }
+        guard let selection = readSelectedRange() else {
+            return nil
+        }
+        return CorrectionObservationRangePolicy.validatedSelection(selection)
+    }
+}
+
+enum CorrectionObservationReadPlan: Equatable {
+    case wait
+    case cancel
+    case read(location: Int, length: Int)
+}
+
+enum CorrectionObservationRangePolicy {
+    static func validatedSelection(_ range: CFRange) -> CFRange? {
+        guard range.location >= 0, range.length >= 0 else {
+            return nil
+        }
+        let (_, overflow) = range.location.addingReportingOverflow(
+            range.length
+        )
+        guard !overflow else {
+            return nil
+        }
+        return range
+    }
+
+    static func readPlan(
+        selection: CFRange,
+        insertionStart: Int,
+        originalLength: Int,
+        allowance: Int = 64
+    ) -> CorrectionObservationReadPlan {
+        guard
+            validatedSelection(selection) != nil,
+            insertionStart >= 0,
+            originalLength >= 0,
+            allowance >= 0
+        else {
+            return .cancel
+        }
+
+        let (caret, caretOverflow) = selection.location
+            .addingReportingOverflow(selection.length)
+        guard !caretOverflow else {
+            return .cancel
+        }
+
+        let (allowedLength, lengthOverflow) = originalLength
+            .addingReportingOverflow(allowance)
+        guard !lengthOverflow else {
+            return .cancel
+        }
+
+        let (allowedEnd, endOverflow) = insertionStart
+            .addingReportingOverflow(allowedLength)
+        guard !endOverflow else {
+            return .cancel
+        }
+
+        guard caret >= insertionStart else {
+            return .wait
+        }
+        guard caret <= allowedEnd else {
+            return .cancel
+        }
+        return .read(
+            location: insertionStart,
+            length: caret - insertionStart
+        )
     }
 }
 

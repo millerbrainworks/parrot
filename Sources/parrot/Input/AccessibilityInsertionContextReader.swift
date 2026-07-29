@@ -1,5 +1,4 @@
 import ApplicationServices
-import AppKit
 import Foundation
 
 struct AccessibilityInsertionContextReader {
@@ -8,18 +7,6 @@ struct AccessibilityInsertionContextReader {
         case selection
         case documentStart
         case precedingText(location: Int, length: Int)
-    }
-
-    private enum OptionalStringAttribute {
-        case value(String)
-        case absent
-        case failure
-    }
-
-    enum OptionalBooleanAttribute: Equatable {
-        case value(Bool)
-        case absent
-        case failure
     }
 
     static func plan(for selectedRange: CFRange) -> Plan {
@@ -41,31 +28,12 @@ struct AccessibilityInsertionContextReader {
     }
 
     func read() -> InsertionContext {
-        guard
-            let element = focusedElement(),
-            let role = stringAttribute(kAXRoleAttribute, from: element)
-        else {
+        guard let element = focusedElement() else {
             return .unavailable
         }
 
-        let subrole: String?
-        switch optionalStringAttribute(kAXSubroleAttribute, from: element) {
-        case let .value(value):
-            subrole = value
-        case .absent:
-            subrole = nil
-        case .failure:
-            return .unavailable
-        }
-
-        let protectedContent = optionalBooleanAttribute(
-            NSAccessibility.Attribute.containsProtectedContent.rawValue,
-            from: element
-        )
         return Self.resolve(
-            role: role,
-            subrole: subrole,
-            protectedContent: protectedContent,
+            access: AccessibilityTextAccessResolver.read(from: element),
             selectedRange: {
                 selectedRange(from: element)
             },
@@ -82,21 +50,31 @@ struct AccessibilityInsertionContextReader {
     static func resolve(
         role: String,
         subrole: String?,
-        protectedContent: OptionalBooleanAttribute,
+        protectedContent: AccessibilityOptionalAttribute<Bool>,
         selectedRange: () -> CFRange?,
         precedingCharacter: (Int, Int) -> Character?
     ) -> InsertionContext {
-        guard !isSensitive(role: role, subrole: subrole) else {
+        resolve(
+            access: AccessibilityTextAccess(
+                role: role,
+                subrole: subrole.map {
+                    AccessibilityOptionalAttribute.value($0)
+                } ?? .absent,
+                protectedContent: protectedContent
+            ),
+            selectedRange: selectedRange,
+            precedingCharacter: precedingCharacter
+        )
+    }
+
+    private static func resolve(
+        access: AccessibilityTextAccess,
+        selectedRange: () -> CFRange?,
+        precedingCharacter: (Int, Int) -> Character?
+    ) -> InsertionContext {
+        guard AccessibilityTextAccessResolver.allowsTextAccess(access) else {
             return .unavailable
         }
-
-        switch protectedContent {
-        case .value(true), .failure:
-            return .unavailable
-        case .value(false), .absent:
-            break
-        }
-
         guard let selectedRange = selectedRange() else {
             return .unavailable
         }
@@ -130,86 +108,6 @@ struct AccessibilityInsertionContextReader {
             return nil
         }
         return (value as! AXUIElement)
-    }
-
-    private func stringAttribute(
-        _ attribute: String,
-        from element: AXUIElement
-    ) -> String? {
-        var value: CFTypeRef?
-        let result = AXUIElementCopyAttributeValue(
-            element,
-            attribute as CFString,
-            &value
-        )
-        guard result == .success else {
-            return nil
-        }
-        return value as? String
-    }
-
-    private func optionalStringAttribute(
-        _ attribute: String,
-        from element: AXUIElement
-    ) -> OptionalStringAttribute {
-        var value: CFTypeRef?
-        let result = AXUIElementCopyAttributeValue(
-            element,
-            attribute as CFString,
-            &value
-        )
-        switch result {
-        case .success:
-            guard let string = value as? String else {
-                return .failure
-            }
-            return .value(string)
-        case .noValue, .attributeUnsupported:
-            return .absent
-        default:
-            return .failure
-        }
-    }
-
-    private func optionalBooleanAttribute(
-        _ attribute: String,
-        from element: AXUIElement
-    ) -> OptionalBooleanAttribute {
-        var value: CFTypeRef?
-        let result = AXUIElementCopyAttributeValue(
-            element,
-            attribute as CFString,
-            &value
-        )
-        return Self.parseOptionalBoolean(result: result, value: value)
-    }
-
-    static func parseOptionalBoolean(
-        result: AXError,
-        value: CFTypeRef?
-    ) -> OptionalBooleanAttribute {
-        switch result {
-        case .success:
-            guard
-                let value,
-                CFGetTypeID(value) == CFBooleanGetTypeID()
-            else {
-                return .failure
-            }
-            return .value(CFBooleanGetValue((value as! CFBoolean)))
-        case .noValue, .attributeUnsupported:
-            return .absent
-        default:
-            return .failure
-        }
-    }
-
-    static func isSensitive(role: String, subrole: String?) -> Bool {
-        [role, subrole].compactMap(\.self).contains { value in
-            let normalized = value.lowercased()
-            return normalized.contains("secure")
-                || normalized.contains("password")
-        }
     }
 
     private func selectedRange(from element: AXUIElement) -> CFRange? {

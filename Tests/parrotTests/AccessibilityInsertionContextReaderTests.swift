@@ -53,7 +53,7 @@ final class AccessibilityInsertionContextReaderTests: XCTestCase {
 
     func testSensitivityCheckAllowsAnAbsentOptionalSubrole() {
         XCTAssertFalse(
-            AccessibilityInsertionContextReader.isSensitive(
+            AccessibilityTextAccessResolver.isSensitive(
                 role: "AXTextArea",
                 subrole: nil
             )
@@ -62,13 +62,13 @@ final class AccessibilityInsertionContextReaderTests: XCTestCase {
 
     func testSensitivityCheckRejectsSecureRoleOrSubrole() {
         XCTAssertTrue(
-            AccessibilityInsertionContextReader.isSensitive(
+            AccessibilityTextAccessResolver.isSensitive(
                 role: "AXPasswordField",
                 subrole: nil
             )
         )
         XCTAssertTrue(
-            AccessibilityInsertionContextReader.isSensitive(
+            AccessibilityTextAccessResolver.isSensitive(
                 role: "AXTextField",
                 subrole: "AXSecureTextField"
             )
@@ -128,35 +128,35 @@ final class AccessibilityInsertionContextReaderTests: XCTestCase {
 
     func testProtectedContentAttributeParsingFailsClosed() {
         XCTAssertEqual(
-            AccessibilityInsertionContextReader.parseOptionalBoolean(
+            AccessibilityTextAccessResolver.parseOptionalBoolean(
                 result: .success,
                 value: kCFBooleanTrue
             ),
             .value(true)
         )
         XCTAssertEqual(
-            AccessibilityInsertionContextReader.parseOptionalBoolean(
+            AccessibilityTextAccessResolver.parseOptionalBoolean(
                 result: .noValue,
                 value: nil
             ),
             .absent
         )
         XCTAssertEqual(
-            AccessibilityInsertionContextReader.parseOptionalBoolean(
+            AccessibilityTextAccessResolver.parseOptionalBoolean(
                 result: .attributeUnsupported,
                 value: nil
             ),
             .absent
         )
         XCTAssertEqual(
-            AccessibilityInsertionContextReader.parseOptionalBoolean(
+            AccessibilityTextAccessResolver.parseOptionalBoolean(
                 result: .success,
                 value: "true" as CFString
             ),
             .failure
         )
         XCTAssertEqual(
-            AccessibilityInsertionContextReader.parseOptionalBoolean(
+            AccessibilityTextAccessResolver.parseOptionalBoolean(
                 result: .cannotComplete,
                 value: nil
             ),

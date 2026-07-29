@@ -8,7 +8,6 @@ final class CorrectionObserver {
         let original: String
         let insertionStart: Int
         let startedAt: Date
-        let secure: Bool
     }
 
     private let policy = CorrectionObservationPolicy(timeout: 30)
@@ -20,16 +19,20 @@ final class CorrectionObserver {
         cancel()
         guard !text.isEmpty else { return }
         guard let element = Self.focusedElement() else { return }
-        let secure = Self.isSecure(element)
-        guard !secure, let selection = Self.selectedRange(of: element) else {
+        let access = AccessibilityTextAccessResolver.read(from: element)
+        guard let selection = policy.selectedRangeForPreparation(
+            access: access,
+            readSelectedRange: {
+                Self.selectedRange(of: element)
+            }
+        ) else {
             return
         }
         pending = PendingObservation(
             element: element,
             original: text,
             insertionStart: selection.location,
-            startedAt: Date(),
-            secure: secure
+            startedAt: Date()
         )
     }
 
@@ -65,28 +68,38 @@ final class CorrectionObserver {
         }
         let sameElement = CFEqual(focused, pending.element)
         let elapsed = Date().timeIntervalSince(pending.startedAt)
-        guard policy.canObserve(
+        let access = AccessibilityTextAccessResolver.read(
+            from: pending.element
+        )
+        guard let selection = policy.selectedRangeForPoll(
             elapsed: elapsed,
             sameElement: sameElement,
-            secure: pending.secure
+            access: access,
+            readSelectedRange: {
+                Self.selectedRange(of: pending.element)
+            }
         ) else {
             cancel()
             return
         }
-        guard let selection = Self.selectedRange(of: pending.element) else {
+
+        let readRange: CFRange
+        switch CorrectionObservationRangePolicy.readPlan(
+            selection: selection,
+            insertionStart: pending.insertionStart,
+            originalLength: pending.original.utf16.count
+        ) {
+        case .wait:
+            return
+        case .cancel:
             cancel()
             return
-        }
-        let caret = selection.location + selection.length
-        guard caret >= pending.insertionStart else { return }
-        let length = caret - pending.insertionStart
-        guard length <= pending.original.utf16.count + 64 else {
-            cancel()
-            return
+        case let .read(location, length):
+            readRange = CFRange(location: location, length: length)
         }
         guard let observed = Self.string(
             from: pending.element,
-            range: CFRange(location: pending.insertionStart, length: length)
+            range: readRange
         ) else {
             cancel()
             return
@@ -151,29 +164,6 @@ final class CorrectionObserver {
             element,
             kAXStringForRangeParameterizedAttribute as CFString,
             rangeValue,
-            &value
-        ) == .success else {
-            return nil
-        }
-        return value as? String
-    }
-
-    private static func isSecure(_ element: AXUIElement) -> Bool {
-        let role = stringAttribute(element, kAXRoleAttribute as CFString)
-        let subrole = stringAttribute(element, kAXSubroleAttribute as CFString)
-        let securityDescription = "\(role ?? "") \(subrole ?? "")".lowercased()
-        return securityDescription.contains("secure")
-            || securityDescription.contains("password")
-    }
-
-    private static func stringAttribute(
-        _ element: AXUIElement,
-        _ attribute: CFString
-    ) -> String? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(
-            element,
-            attribute,
             &value
         ) == .success else {
             return nil
