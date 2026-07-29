@@ -16,14 +16,14 @@ final class RecordingOverlay {
     }
 
     enum Geometry {
-        static let panelWidth: CGFloat = 192
-        static let panelHeight: CGFloat = 40
-        static let buttonWidth: CGFloat = 52
-        static let waveformWidth: CGFloat = 88
-        static let waveformHeight: CGFloat = 28
-        static let iconSize: CGFloat = 16
-        static let waveformBarWidth: CGFloat = 4
-        static let waveformSpacing: CGFloat = 4
+        static let panelWidth: CGFloat = 144
+        static let panelHeight: CGFloat = 28
+        static let buttonWidth: CGFloat = 39
+        static let waveformWidth: CGFloat = 66
+        static let waveformHeight: CGFloat = 20
+        static let iconSize: CGFloat = 11
+        static let waveformBarWidth: CGFloat = 3
+        static let waveformSpacing: CGFloat = 3
     }
 
     private var window: NSPanel?
