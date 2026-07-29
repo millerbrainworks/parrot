@@ -11,5 +11,8 @@ final class WhisperKitTranscriberTests: XCTestCase {
 
         XCTAssertEqual(options.promptTokens, promptTokens)
         XCTAssertNil(options.firstTokenLogProbThreshold)
+        XCTAssertEqual(options.logProbThreshold, -1.0)
+        XCTAssertEqual(options.noSpeechThreshold, 0.6)
+        XCTAssertEqual(options.temperatureFallbackCount, 5)
     }
 }

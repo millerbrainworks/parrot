@@ -45,6 +45,8 @@ actor WhisperKitTranscriber: Transcriber {
 
     static func makeDecodingOptions(promptTokens: [Int]?) -> DecodingOptions {
         guard let promptTokens else { return DecodingOptions() }
+        // WhisperKit can judge a forced prompt token and stop before decoding speech.
+        // Match its CLI by disabling only the first-token guard for prompted runs.
         return DecodingOptions(
             promptTokens: promptTokens,
             firstTokenLogProbThreshold: nil
