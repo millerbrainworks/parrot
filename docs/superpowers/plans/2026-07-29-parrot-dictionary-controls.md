@@ -4,7 +4,7 @@
 
 **Goal:** Add single-tap recording completion, a clickable 96-by-20 recording bar, private personal vocabulary processing, and explicitly confirmed correction learning to the installed Parrot service.
 
-**Architecture:** Keep `DictationController` as the only session orchestrator. Add pure gesture, dictionary, transcript-processing, and correction-diff units around it; keep AppKit/Accessibility adapters thin and injected so behavior is testable without live global input. Reload the JSON dictionary at each transcription, optionally pass its terms to WhisperKit prompt tokens, process final text before history and insertion, and observe only the newly inserted Accessibility range for assisted learning.
+**Architecture:** Keep `DictationController` as the only session orchestrator. Add pure gesture, dictionary, transcript-processing, and correction-diff units around it; keep AppKit/Accessibility adapters thin and injected so behavior is testable without live global input. Reload the JSON dictionary at each transcription, optionally pass its terms to WhisperKit prompt tokens, process final text before history and insertion, and observe only a bounded Accessibility range from insertion start to the current caret for assisted learning.
 
 **Tech Stack:** Swift 5.9, Swift Package Manager, XCTest, AppKit/SwiftUI, macOS Accessibility APIs, CoreGraphics event taps, WhisperKit.
 
@@ -22,8 +22,8 @@ Create:
   filler, replacement, term, punctuation, and whitespace processing.
 - `Sources/parrot/Learning/CorrectionDiff.swift` — pure high-confidence
   single-substitution detection.
-- `Sources/parrot/Learning/CorrectionObserver.swift` — bounded
-  Accessibility observation of only the freshly inserted range.
+- `Sources/parrot/Learning/CorrectionObserver.swift` — bounded Accessibility
+  observation from insertion start to the current caret.
 - `Sources/parrot/UI/LearningPopoverController.swift` — 30-second
   menu-bar-anchored Learn/Ignore confirmation UI.
 - `Tests/parrotTests/PersonalDictionaryStoreTests.swift`
@@ -740,10 +740,10 @@ final class CorrectionObserver {
 
 Use a pure `CorrectionObservationPolicy` for elapsed/focus/security decisions.
 When the currently observable prefix is shorter than the original insertion,
-compare it against candidate original prefixes within 64 characters of the
-caret and accept only if exactly one candidate yields the same localized
-proposal. This supports corrections that change length without reading beyond
-the inserted range.
+compare it against candidate original prefixes within 64 UTF-16 code units of
+the caret and accept only if exactly one candidate yields the same localized
+proposal. This supports corrections that change length while the requested
+range remains capped at the original insertion's UTF-16 length plus 64.
 
 - [x] **Step 4: Implement the anchored confirmation popover**
 

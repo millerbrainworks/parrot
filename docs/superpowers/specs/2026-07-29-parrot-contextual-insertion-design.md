@@ -5,9 +5,9 @@ Date: 2026-07-29
 ## Goal
 
 Make consecutive Parrot dictations read like naturally typed prose, reduce the
-recording bar to the approved 144-by-28 size, and verify that the selected
-local transcription model gives the best measured accuracy/latency tradeoff on
-this Mac without weakening privacy or personal-vocabulary behavior.
+recording bar to the approved 144-by-28 size, and use a one-time exploratory
+comparison to inform the local-model decision without weakening privacy or
+personal-vocabulary behavior.
 
 ## Scope
 
@@ -15,7 +15,7 @@ This loop adds:
 
 - context-aware spacing at the cursor between separate dictation sessions;
 - an exact 144-by-28 recording bar with proportionally reduced controls;
-- a transient, repeatable comparison of the registered Base English, Small
+- a transient, one-time exploratory comparison of the registered Base English, Small
   English, and Large v3 Turbo models on identical audio; and
 - a model change only if a candidate produces a material accuracy improvement
   without exceeding the post-stop latency budget.
@@ -43,9 +43,11 @@ Parrot prefixes exactly one space when all of these are true:
    delimiter.
 
 Parrot does not synthesize a space at an empty field, after existing whitespace
-or a newline, after an opening delimiter, before punctuation-only input, while
-replacing selected text, in a secure field, or when cursor context is
-unavailable. This conservative fallback preserves existing behavior in apps
+or a newline, after an opening delimiter, before input beginning with separator
+punctuation such as a comma or period, while replacing selected text, in a
+secure field, or when cursor context is unavailable. An opening quote or
+bracket is intentionally word-like, so quote- or bracket-led text can receive a
+boundary space. This conservative fallback preserves existing behavior in apps
 whose text controls do not implement the required Accessibility attributes.
 
 ### Data ownership
@@ -97,7 +99,7 @@ WhisperKit for this workflow:
 - Apple's SpeechAnalyzer has no documented custom-vocabulary support; and
 - personal canonical replacements are a required part of this product.
 
-The registered models are benchmarked on identical transient 16 kHz mono
+The registered models are compared on identical transient 16 kHz mono
 fixtures containing ordinary prose, punctuation boundaries, and personal
 terms. For each model, record:
 
@@ -105,17 +107,46 @@ terms. For each model, record:
 - median and maximum transcription time; and
 - model download/storage cost.
 
-Base English remains selected unless another model:
+The original pre-run exploratory gate kept Base English selected unless another
+model:
 
 1. reduces total reference errors or personal-term errors;
 2. does not regress any ordinary-prose fixture materially; and
 3. keeps median post-stop transcription at or below 1.5 seconds for the short
    fixture set on this M4 MacBook Air.
 
-If results tie, Base English wins because it has the smallest 145 MB footprint,
-lowest startup burden, and already completes real recordings near one second.
-Benchmark fixtures and any captured WAV files are deleted after the run; cached
-downloaded models may remain available for later selection.
+If results tie, Base English wins because it has the smallest 140 MB on-disk
+cache footprint, is already the established default, and completes real
+recordings near one second. Benchmark fixtures and any captured WAV files are
+deleted after the run; cached downloaded models may remain available for later
+selection.
+
+### Post-benchmark deployment-review amendment (2026-07-29)
+
+The one-time exploratory run used six synthetic fixtures totaling 82 words on
+an M4 Mac with 16 GB of memory. Warmup and download time were excluded. The
+temporary audio, harness, and fixtures were not retained, so the run is not
+reproducible or auditable from the repository.
+
+- Base: 8/82 word errors, 5/10 personal-term errors, 0.636-second median,
+  0.684-second maximum, 140 MB on-disk cache.
+- Small: 4/82 word errors, 3/10 personal-term errors, 1.452-second median,
+  1.506-second maximum, 464 MB on-disk cache.
+- Large: 74/82 word errors, 8/10 personal-term errors, 0.809-second median,
+  1.984-second maximum, 1.5 GB on-disk cache.
+
+Small passed the literal exploratory gate: it reduced total and personal-term
+errors, showed no observed material ordinary-prose regression, and its
+1.452-second median was within the 1.5-second limit. The gate was a screening
+rule, not an automatic global-default deployment rule.
+
+Deployment review retained Base because Small's median was 128% slower, left
+only 48 ms (3.2%) headroom below the gate, and reached a 1.506-second maximum.
+Making uncached Small the global default would also require a one-time 464 MB
+download and on-disk cache footprint, creating startup and offline-availability
+risk before the model-selection UI is available. Small remains explicitly
+selectable. Large's result does not support production selection and needs
+separate diagnosis.
 
 ## Error handling and privacy
 
@@ -133,7 +164,9 @@ Automated tests cover:
 
 - period-to-capital and word-to-word boundary spacing;
 - no extra space at field start, after whitespace/newline/opening delimiters,
-  for selections, punctuation-only input, secure/unavailable context;
+  for selections, before leading separator punctuation such as a comma or
+  period, or with secure/unavailable context;
+- boundary spaces before quote- or bracket-led text when prior context requires;
 - history receiving semantic text while observer/injector receive adjusted text;
 - exact 144-by-28 overlay geometry; and
 - all existing gesture, dictionary, filler, correction, and privacy behavior.
@@ -152,5 +185,5 @@ Live verification covers:
 The loop is complete when consecutive recordings produce natural boundaries
 such as `working. It's`, the bar is 144 by 28, history remains clean, correction
 tracking remains aligned, all automated tests and the release build pass, the
-best qualifying local model is selected from measured results, and the login
-service passes a final live dictation check.
+deployment-reviewed local-model default is recorded, and the login service
+passes a final live dictation check.

@@ -280,15 +280,18 @@ content.
 
 ### Observation boundary
 
-After a successful insertion, Parrot may observe only the Accessibility value
-and selection information needed to re-read the range it just inserted. It
-does not inspect unrelated document text, window titles, clipboard history, or
-other applications.
+After a successful insertion, Parrot uses the exact inserted text as its
+reference and may observe only the Accessibility selection information and a
+range beginning at the insertion start and ending at the current caret. It
+cancels if that range exceeds the original insertion's UTF-16 length plus 64.
+The bounded range may therefore include appended edit context, but Parrot never
+requests the complete field value or unrelated whole-document text. It does
+not inspect window titles, clipboard history, or other applications.
 
 Observation lasts for 30 seconds or until one of these occurs:
 
 - the user changes focus or destination application;
-- the inserted range can no longer be identified safely;
+- the bounded insertion-anchored range can no longer be identified safely;
 - Parrot starts another recording;
 - the user accepts or ignores a suggestion; or
 - the destination is a secure or password field.
@@ -299,11 +302,11 @@ failure is silent and does not affect dictation.
 
 ### Correction detection
 
-Parrot compares the originally inserted range with the current value of that
-same range. It offers a suggestion only when it can isolate one localized,
-non-empty substitution with a clear original and corrected phrase. Broad
-rewrites, deletions without a replacement, ambiguous multi-region edits, and
-changes outside the inserted range do not produce suggestions.
+Parrot compares the original insertion with the bounded observed prefix from
+the insertion start to the current caret. It offers a suggestion only when it
+can isolate one localized, non-empty substitution with a clear original and
+corrected phrase. Broad rewrites, deletions without a replacement, and
+ambiguous multi-region edits do not produce suggestions.
 
 Parrot never writes a learned rule without confirmation.
 
@@ -363,7 +366,8 @@ For a completed recording:
 5. the final text is appended to private daily history;
 6. the final text is inserted at the cursor;
 7. when reliable and non-secure Accessibility range information is available,
-   `CorrectionObserver` watches only the inserted range for up to 30 seconds;
+   `CorrectionObserver` watches the bounded range from insertion start to the
+   current caret for up to 30 seconds;
 8. a high-confidence correction opens the confirmation popover; and
 9. Learn atomically merges the new rule, while Ignore or timeout changes
    nothing.
@@ -384,9 +388,10 @@ to warn but does not block insertion, consistent with the original design.
 - Assisted learning is disabled for secure fields and unsupported application
   controls.
 - Ambiguous corrections are ignored rather than guessed.
-- Accessibility observation is bounded to the fresh insertion and two
-  30-second windows: one for detecting a correction and, once shown, one for
-  responding to the popover.
+- Accessibility observation is bounded to insertion start through the current
+  caret, at most the original UTF-16 length plus 64, and two 30-second windows:
+  one for detecting a correction and, once shown, one for responding to the
+  popover.
 - Audio, raw transcripts, final transcripts, dictionary contents, destination
   field contents, and proposed corrections never appear in diagnostic logs.
 

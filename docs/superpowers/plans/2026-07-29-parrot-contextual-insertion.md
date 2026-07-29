@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add conservative cursor-aware spacing, resize the recording bar to 144 by 28, and select the best qualifying local model through a repeatable benchmark.
+**Goal:** Add conservative cursor-aware spacing, resize the recording bar to 144 by 28, and inform the local-model decision with a one-time exploratory comparison.
 
 **Architecture:** Keep semantic transcript processing independent from insertion formatting. Add a pure boundary policy plus a thin Accessibility context reader, inject the prepared string through `DictationController`, and retain clean history. Keep model selection behind an evidence gate so benchmark failure or a latency regression cannot change the installed default.
 
@@ -264,23 +264,37 @@ verification documentation commit only.
 
 ## Benchmark Results
 
-On 2026-07-29, an exploratory comparison ran on an M4 Mac with 16 GB of memory
-using six synthetic fixtures totaling 82 words. Warmup and download time were
-excluded from latency, and the temporary audio was deleted afterward.
+On 2026-07-29, a one-time exploratory comparison ran on an M4 Mac with 16 GB
+of memory using six synthetic fixtures totaling 82 words. Warmup and download
+time were excluded from latency, and the temporary audio was deleted afterward.
+The harness and fixtures were not retained, so the run is not reproducible or
+auditable from the repository.
 
 - Base: 8/82 word errors, 5/10 personal-term errors, 0.636-second median,
-  140 MB cache.
+  0.684-second maximum, 140 MB on-disk cache.
 - Small: 4/82 word errors, 3/10 personal-term errors, 1.452-second median,
-  464 MB cache.
+  1.506-second maximum, 464 MB on-disk cache.
 - Large: 74/82 word errors, 8/10 personal-term errors, 0.809-second median,
-  1.984-second maximum, 1.5 GB cache.
+  1.984-second maximum, 1.5 GB on-disk cache.
 
 These results are exploratory, not statistically robust, and do not identify a
-universally best model. Base remains the resilient low-latency default. Small
-remains explicitly selectable but is not the global default because its median
-latency increased 128%, leaving only 48 ms below the gate, and its first
-download/offline-startup cost is 464 MB. Large remains an explicit exploratory
-selection; its quality failure does not support production selection.
+universally best model.
+
+### Post-benchmark deployment-review amendment (2026-07-29)
+
+Small passed the literal exploratory gate above: it reduced total and
+personal-term errors, showed no observed material ordinary-prose regression,
+and its 1.452-second median was within the 1.5-second limit. That gate was a
+pre-run screening rule, not an automatic global-default deployment rule.
+
+Deployment review retained Base as the resilient low-latency default because
+Small's median was 128% slower, left only 48 ms (3.2%) headroom below the gate,
+and reached a 1.506-second maximum. Making uncached Small the global default
+would also require a one-time 464 MB download and on-disk cache footprint,
+creating startup and offline-availability risk before the model-selection UI
+is available. Small remains explicitly selectable. Large remains explicitly
+selectable, but its result does not support production selection and needs
+separate diagnosis.
 
 ### Task 5: Documentation, release, and live verification
 
@@ -308,7 +322,7 @@ git status --short
 Expected: all tests pass, the release build succeeds, and only intended
 documentation/checklist changes remain.
 
-- [ ] **Step 3: Commit documentation**
+- [x] **Step 3: Commit documentation**
 
 ```bash
 git add README.md docs/superpowers

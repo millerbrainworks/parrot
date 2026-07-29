@@ -26,9 +26,11 @@ or inserting, additional gestures are ignored.
 
 Separate dictations receive one context-aware boundary space when the cursor
 follows text. Parrot does not add a space at the start of a field, after
-existing whitespace or an opening delimiter, before punctuation-only
-dictation, while replacing a selection, when cursor context is unavailable, or
-in protected controls. Unicode text is injected without splitting surrogate
+existing whitespace or an opening delimiter, before dictation beginning with
+separator punctuation such as a comma or period, while replacing a selection,
+when cursor context is unavailable, or in protected controls. An opening quote
+or bracket is intentionally word-like, so quote- or bracket-led dictation can
+receive a boundary space. Unicode text is injected without splitting surrogate
 pairs.
 
 The recording bar is exactly 144×28 points, with `×` to cancel and `✓` to
@@ -58,15 +60,24 @@ Base English remains the resilient, low-latency default. Small English and
 Large v3 Turbo remain explicitly selectable and use cached copies when
 available.
 
-An exploratory synthetic evaluation on six fixtures (82 words) measured Base
-at 8/82 word errors, 5/10 personal-term errors, and 0.636-second median
-latency; Small at 4/82, 3/10, and 1.452 seconds; and Large at 74/82, 8/10,
-0.809-second median, and 1.984-second maximum latency. These aggregate results
-are not statistically robust and do not establish a universally best model.
-Small is not the global default because its median latency increased 128%,
-leaving only 48 ms below the gate, and its first download/offline-startup cost
-is 464 MB. Large's exploratory quality failure rules it out as a production
-selection.
+A one-time exploratory synthetic run on six fixtures (82 words) measured Base
+at 8/82 word errors, 5/10 personal-term errors, 0.636-second median latency,
+and 0.684-second maximum latency; Small at 4/82, 3/10, a 1.452-second median,
+and a 1.506-second maximum; and Large at 74/82, 8/10, a 0.809-second median,
+and a 1.984-second maximum. Its harness and fixtures were not retained, so the
+run is not reproducible or auditable from the repository. These aggregate
+results are not statistically robust and do not establish a universally best
+model.
+
+Small passed the literal exploratory gate: it reduced errors, showed no
+observed material ordinary-prose regression, and kept median latency at 1.452
+seconds, within the 1.5-second limit. A post-benchmark deployment review still
+retained Base: Small's median was 128% slower, had only 48 ms (3.2%) headroom,
+and reached a 1.506-second maximum. Making uncached Small the global default
+would also require a one-time 464 MB download and on-disk cache footprint,
+creating startup and offline-availability risk before the model-selection UI
+is available. Small remains explicitly selectable. Large's result does not
+support production selection and needs separate diagnosis.
 
 ## Personal dictionary and filler cleanup
 
@@ -93,10 +104,14 @@ as `actually`, `like`, `you know`, and `I mean`.
 
 If you correct one localized word or phrase shortly after insertion, supported
 text fields show a Learn/Ignore popover beneath the menu-bar bird. Parrot
-updates the dictionary only after Learn. Observation lasts at most 30 seconds,
-tracks the exact inserted text (including any boundary space), is restricted to
-the freshly inserted range, and is disabled for secure fields and apps that do
-not expose a safe Accessibility text range.
+updates the dictionary only after Learn. Observation uses the exact inserted
+text (including any boundary space) as its reference. For at most 30 seconds,
+while the same non-secure control remains focused, it reads from the insertion
+start to the current caret, capped at the original insertion's UTF-16 length
+plus 64. That bounded range may include appended edit context; Parrot never
+requests the complete field value or unrelated whole-document text.
+Observation is disabled for secure fields and apps that do not expose a safe
+Accessibility text range.
 
 Invalid JSON never disables dictation. Parrot keeps using its last valid
 dictionary and shows a menu warning without overwriting the invalid file.
