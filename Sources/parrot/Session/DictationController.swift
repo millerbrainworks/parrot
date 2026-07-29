@@ -5,11 +5,14 @@ struct DictationDependencies {
     let resolveDevice: () -> ResolvedAudioDevice
     let startCapture: (AudioDeviceID?) throws -> Void
     let stopCapture: () -> [Float]
-    let transcribe: ([Float]) async throws -> String
+    let loadDictionary: () -> DictionaryLoadResult
+    let transcribe: ([Float], [String]) async throws -> String
+    let processTranscript: (String, PersonalDictionary) -> String
     let writeHistory: (String, String) throws -> Void
     let destinationApplication: () -> String
     let injectText: (String) -> Void
     let setRecordingEnabled: (Bool) -> Void
+    let dictionaryWarningChanged: (String?) -> Void
     let present: (DictationState) -> Void
 }
 
@@ -110,11 +113,19 @@ final class DictationController {
     private func transcribeAndInject(_ samples: [Float]) async {
         let started = Date()
         do {
-            let rawText = try await dependencies.transcribe(samples)
+            let loadedDictionary = dependencies.loadDictionary()
+            dependencies.dictionaryWarningChanged(loadedDictionary.warning)
+            let rawText = try await dependencies.transcribe(
+                samples,
+                loadedDictionary.dictionary.terms
+            )
             let elapsed = Date().timeIntervalSince(started)
             logger.transcriptionCompleted(duration: elapsed)
 
-            let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = dependencies.processTranscript(
+                rawText,
+                loadedDictionary.dictionary
+            )
             guard !text.isEmpty else {
                 machine.emptyCapture()
                 dependencies.present(.idle)

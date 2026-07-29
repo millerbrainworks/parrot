@@ -89,6 +89,8 @@ struct Run: ParsableCommand {
             capture.onLevel = { level in overlay.pushLevel(level) }
         }
         let historyWriter = HistoryWriter()
+        let dictionaryStore = PersonalDictionaryStore()
+        let transcriptProcessor = TranscriptProcessor()
         let preferencesStore = PreferencesStore()
         let deviceCatalog = AudioDeviceCatalog()
         let logger = DiagnosticLogger()
@@ -120,8 +122,17 @@ struct Run: ParsableCommand {
                     stopCapture: {
                         capture.stop()
                     },
-                    transcribe: { samples in
-                        try await transcriber.transcribe(samples)
+                    loadDictionary: {
+                        dictionaryStore.loadUsingFallback()
+                    },
+                    transcribe: { samples, vocabulary in
+                        try await transcriber.transcribe(
+                            samples,
+                            vocabulary: vocabulary
+                        )
+                    },
+                    processTranscript: { text, dictionary in
+                        transcriptProcessor.process(text, using: dictionary)
                     },
                     writeHistory: { text, applicationName in
                         _ = try historyWriter.append(
@@ -138,6 +149,7 @@ struct Run: ParsableCommand {
                     setRecordingEnabled: { enabled in
                         monitor.setRecordingEnabled(enabled)
                     },
+                    dictionaryWarningChanged: { _ in },
                     present: { state in
                         menuBar.setState(state)
                         switch state {

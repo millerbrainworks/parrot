@@ -36,7 +36,7 @@ final class DictationControllerTests: XCTestCase {
         var operations: [String] = []
         let controller = makeController(
             stopCapture: { [0.1, 0.2] },
-            transcribe: { _ in "Draft the release notes." },
+            transcribe: { _, _ in "Draft the release notes." },
             writeHistory: { text, app in
                 operations.append("history:\(app):\(text)")
             },
@@ -65,7 +65,7 @@ final class DictationControllerTests: XCTestCase {
         var inserted: String?
         let controller = makeController(
             stopCapture: { [0.1] },
-            transcribe: { _ in "Recoverable text" },
+            transcribe: { _, _ in "Recoverable text" },
             writeHistory: { _, _ in throw CocoaError(.fileWriteUnknown) },
             injectText: {
                 inserted = $0
@@ -87,7 +87,7 @@ final class DictationControllerTests: XCTestCase {
         var injectionCount = 0
         let controller = makeController(
             stopCapture: { [0.1] },
-            transcribe: { _ in "  \n" },
+            transcribe: { _, _ in "  \n" },
             writeHistory: { _, _ in historyCount += 1 },
             injectText: { _ in injectionCount += 1 },
             present: { state in
@@ -104,13 +104,59 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(controller.state, .idle)
     }
 
+    func testProcessesLatestDictionaryBeforeHistoryAndInjection() async {
+        let injected = expectation(description: "processed text injected")
+        var vocabulary: [String] = []
+        var warnings: [String?] = []
+        var operations: [String] = []
+        let dictionary = PersonalDictionary(
+            version: 1,
+            terms: ["Arcqtype"],
+            replacements: [
+                .init(canonical: "Arcqtype", variants: ["archetype"]),
+            ],
+            fillerWords: ["um"]
+        )
+        let controller = makeController(
+            stopCapture: { [0.1] },
+            loadDictionary: {
+                DictionaryLoadResult(
+                    dictionary: dictionary,
+                    warning: "Personal Dictionary Needs Attention"
+                )
+            },
+            transcribe: { _, terms in
+                vocabulary = terms
+                return "Um, archetype."
+            },
+            writeHistory: { text, _ in operations.append("history:\(text)") },
+            injectText: {
+                operations.append("inject:\($0)")
+                injected.fulfill()
+            },
+            dictionaryWarningChanged: { warnings.append($0) }
+        )
+
+        controller.handle(.startRecording)
+        controller.handle(.finishRecording)
+        await fulfillment(of: [injected], timeout: 1)
+
+        XCTAssertEqual(vocabulary, ["Arcqtype"])
+        XCTAssertEqual(operations, ["history:Arcqtype.", "inject:Arcqtype."])
+        XCTAssertEqual(warnings, ["Personal Dictionary Needs Attention"])
+    }
+
     private func makeController(
         startCapture: @escaping (AudioDeviceID?) throws -> Void = { _ in },
         stopCapture: @escaping () -> [Float] = { [] },
-        transcribe: @escaping ([Float]) async throws -> String = { _ in "" },
+        loadDictionary: @escaping () -> DictionaryLoadResult = {
+            DictionaryLoadResult(dictionary: .starter, warning: nil)
+        },
+        transcribe: @escaping ([Float], [String]) async throws -> String = { _, _ in "" },
         writeHistory: @escaping (String, String) throws -> Void = { _, _ in },
         injectText: @escaping (String) -> Void = { _ in },
         setRecordingEnabled: @escaping (Bool) -> Void = { _ in },
+        dictionaryWarningChanged: @escaping (String?) -> Void = { _ in },
         present: @escaping (DictationState) -> Void = { _ in }
     ) -> DictationController {
         DictationController(
@@ -125,11 +171,16 @@ final class DictationControllerTests: XCTestCase {
                 },
                 startCapture: startCapture,
                 stopCapture: stopCapture,
+                loadDictionary: loadDictionary,
                 transcribe: transcribe,
+                processTranscript: { text, dictionary in
+                    TranscriptProcessor().process(text, using: dictionary)
+                },
                 writeHistory: writeHistory,
                 destinationApplication: { "Codex" },
                 injectText: injectText,
                 setRecordingEnabled: setRecordingEnabled,
+                dictionaryWarningChanged: dictionaryWarningChanged,
                 present: present
             ),
             logger: DiagnosticLogger { _ in }

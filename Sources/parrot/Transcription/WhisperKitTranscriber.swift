@@ -25,11 +25,20 @@ actor WhisperKitTranscriber: Transcriber {
         FileHandle.standardError.write(Data("✓ \(model.id) ready\n".utf8))
     }
 
-    func transcribe(_ audio: [Float]) async throws -> String {
+    func transcribe(_ audio: [Float], vocabulary: [String] = []) async throws -> String {
         if pipeline == nil { try await warmUp() }
         guard let pipeline else { throw TranscriberError.notLoaded }
 
-        let results = try await pipeline.transcribe(audioArray: audio)
+        let promptTokens = pipeline.tokenizer.flatMap { tokenizer in
+            VocabularyPromptBuilder.tokens(for: vocabulary) {
+                tokenizer.encode(text: $0)
+            }
+        }
+        let options = DecodingOptions(promptTokens: promptTokens)
+        let results: [TranscriptionResult] = try await pipeline.transcribe(
+            audioArray: audio,
+            decodeOptions: options
+        )
         let raw = results.map(\.text).joined(separator: " ")
         return Self.sanitize(raw)
     }

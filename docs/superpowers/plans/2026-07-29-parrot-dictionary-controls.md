@@ -392,7 +392,7 @@ git commit -m "feat: process personal vocabulary and fillers"
 - Modify: `Sources/parrot/Session/DictationController.swift`
 - Modify: `Tests/parrotTests/DictationControllerTests.swift`
 
-- [ ] **Step 1: Write failing controller tests**
+- [x] **Step 1: Write failing controller tests**
 
 Add a test proving dictionary reload happens per transcription and only final
 processed text reaches history and insertion:
@@ -434,7 +434,7 @@ func testProcessesLatestDictionaryBeforeHistoryAndInjection() async {
 }
 ```
 
-- [ ] **Step 2: Run controller tests and confirm RED**
+- [x] **Step 2: Run controller tests and confirm RED**
 
 Run:
 
@@ -444,7 +444,7 @@ swift test --filter DictationControllerTests
 
 Expected: compilation fails on the new dependency signatures.
 
-- [ ] **Step 3: Add vocabulary terms to transcription**
+- [x] **Step 3: Add vocabulary terms to transcription**
 
 Change:
 
@@ -472,7 +472,7 @@ let results: [TranscriptionResult] = try await pipeline.transcribe(
 An empty term list passes `nil` prompt tokens. Keep existing non-speech
 sanitization.
 
-- [ ] **Step 4: Process the dictionary inside session orchestration**
+- [x] **Step 4: Process the dictionary inside session orchestration**
 
 Add `loadDictionary`, `processTranscript`, and `dictionaryWarningChanged`
 closures to `DictationDependencies`. Load immediately before calling
@@ -480,7 +480,7 @@ closures to `DictationDependencies`. Load immediately before calling
 warning without its contents, and use only processed text for history and
 injection. An empty processed result follows the existing empty path.
 
-- [ ] **Step 5: Run focused and full tests and confirm GREEN**
+- [x] **Step 5: Run focused and full tests and confirm GREEN**
 
 Run:
 
@@ -491,7 +491,7 @@ swift test
 
 Expected: controller tests and the complete suite pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add Sources/parrot/Transcription Sources/parrot/Session/DictationController.swift Tests/parrotTests/DictationControllerTests.swift
