@@ -16,11 +16,11 @@ final class DictationControllerTests: XCTestCase {
                 stopCount += 1
                 return [0.1]
             },
-            setCancellationEnabled: { cancellationValues.append($0) },
+            setRecordingEnabled: { cancellationValues.append($0) },
             present: { presentations.append($0) }
         )
 
-        controller.handle(.toggleRecording)
+        controller.handle(.startRecording)
         XCTAssertEqual(controller.state, .recording)
         XCTAssertEqual(startedDevice, 42)
 
@@ -46,8 +46,8 @@ final class DictationControllerTests: XCTestCase {
             }
         )
 
-        controller.handle(.toggleRecording)
-        controller.handle(.toggleRecording)
+        controller.handle(.startRecording)
+        controller.handle(.finishRecording)
         await fulfillment(of: [injected], timeout: 1)
 
         XCTAssertEqual(
@@ -73,8 +73,8 @@ final class DictationControllerTests: XCTestCase {
             }
         )
 
-        controller.handle(.toggleRecording)
-        controller.handle(.toggleRecording)
+        controller.handle(.startRecording)
+        controller.handle(.finishRecording)
         await fulfillment(of: [injected], timeout: 1)
 
         XCTAssertEqual(inserted, "Recoverable text")
@@ -95,8 +95,8 @@ final class DictationControllerTests: XCTestCase {
             }
         )
 
-        controller.handle(.toggleRecording)
-        controller.handle(.toggleRecording)
+        controller.handle(.startRecording)
+        controller.handle(.finishRecording)
         await fulfillment(of: [idle], timeout: 1)
 
         XCTAssertEqual(historyCount, 0)
@@ -110,7 +110,7 @@ final class DictationControllerTests: XCTestCase {
         transcribe: @escaping ([Float]) async throws -> String = { _ in "" },
         writeHistory: @escaping (String, String) throws -> Void = { _, _ in },
         injectText: @escaping (String) -> Void = { _ in },
-        setCancellationEnabled: @escaping (Bool) -> Void = { _ in },
+        setRecordingEnabled: @escaping (Bool) -> Void = { _ in },
         present: @escaping (DictationState) -> Void = { _ in }
     ) -> DictationController {
         DictationController(
@@ -129,7 +129,7 @@ final class DictationControllerTests: XCTestCase {
                 writeHistory: writeHistory,
                 destinationApplication: { "Codex" },
                 injectText: injectText,
-                setCancellationEnabled: setCancellationEnabled,
+                setRecordingEnabled: setRecordingEnabled,
                 present: present
             ),
             logger: DiagnosticLogger { _ in }

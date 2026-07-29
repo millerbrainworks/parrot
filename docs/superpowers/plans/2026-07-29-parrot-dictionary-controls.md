@@ -65,7 +65,7 @@ Modify:
 - Test: `Tests/parrotTests/HotkeyEventPolicyTests.swift`
 - Test: `Tests/parrotTests/DictationControllerTests.swift`
 
-- [ ] **Step 1: Write failing gesture-policy tests**
+- [x] **Step 1: Write failing gesture-policy tests**
 
 Add tests that drive release timestamps directly:
 
@@ -86,7 +86,7 @@ func testRecordingUsesOneNewTapToFinish() {
 }
 ```
 
-- [ ] **Step 2: Run the focused tests and confirm RED**
+- [x] **Step 2: Run the focused tests and confirm RED**
 
 Run:
 
@@ -97,7 +97,7 @@ swift test --filter HotkeyEventPolicyTests
 Expected: compilation fails because `FnDisposition`, `recordingEnabled`, and
 `fnReleased(at:)` do not exist.
 
-- [ ] **Step 3: Implement the pure Fn policy and distinct monitor events**
+- [x] **Step 3: Implement the pure Fn policy and distinct monitor events**
 
 Add:
 
@@ -138,7 +138,7 @@ Change `HotkeyMonitor.Event` to `.startRecording`, `.finishRecording`, and
 under the existing lock. Map start and finish to the existing state machine's
 toggle command inside `DictationController`.
 
-- [ ] **Step 4: Run gesture and controller tests and confirm GREEN**
+- [x] **Step 4: Run gesture and controller tests and confirm GREEN**
 
 Run:
 
@@ -150,7 +150,7 @@ swift test --filter DictationControllerTests
 Expected: both suites pass and a new controller test proves start followed by
 finish reaches transcription.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Sources/parrot/Input Sources/parrot/Session/DictationController.swift Tests/parrotTests/HotkeyEventPolicyTests.swift Tests/parrotTests/DictationControllerTests.swift

@@ -3,10 +3,11 @@ import ApplicationServices
 import CoreGraphics
 import Foundation
 
-/// Watches Fn double-taps and Escape globally.
+/// Watches state-dependent Fn gestures and Escape globally.
 final class HotkeyMonitor {
     enum Event {
-        case toggleRecording
+        case startRecording
+        case finishRecording
         case cancelRecording
     }
 
@@ -20,7 +21,6 @@ final class HotkeyMonitor {
     private var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var isPressed = false
-    private var doubleTap = DoubleTapRecognizer(maxInterval: 0.35)
     private var eventPolicy = HotkeyEventPolicy()
     private let policyLock = NSLock()
 
@@ -82,9 +82,10 @@ final class HotkeyMonitor {
         onEvent = nil
     }
 
-    func setCancellationEnabled(_ enabled: Bool) {
+    func setRecordingEnabled(_ enabled: Bool) {
         policyLock.lock()
         eventPolicy.cancellationEnabled = enabled
+        eventPolicy.recordingEnabled = enabled
         policyLock.unlock()
     }
 
@@ -125,8 +126,17 @@ final class HotkeyMonitor {
         isPressed = pressed
         if !pressed {
             let timestamp = TimeInterval(event.timestamp) / 1_000_000_000
-            if doubleTap.registerTap(at: timestamp) {
-                emit(.toggleRecording)
+            let disposition: FnDisposition
+            policyLock.lock()
+            disposition = eventPolicy.fnReleased(at: timestamp)
+            policyLock.unlock()
+            switch disposition {
+            case .none:
+                break
+            case .start:
+                emit(.startRecording)
+            case .finish:
+                emit(.finishRecording)
             }
         }
         return false

@@ -9,7 +9,7 @@ struct DictationDependencies {
     let writeHistory: (String, String) throws -> Void
     let destinationApplication: () -> String
     let injectText: (String) -> Void
-    let setCancellationEnabled: (Bool) -> Void
+    let setRecordingEnabled: (Bool) -> Void
     let present: (DictationState) -> Void
 }
 
@@ -34,7 +34,7 @@ final class DictationController {
 
     func handle(_ event: HotkeyMonitor.Event) {
         switch event {
-        case .toggleRecording:
+        case .startRecording, .finishRecording:
             execute(machine.handleToggle())
         case .cancelRecording:
             execute(machine.handleCancel())
@@ -58,19 +58,19 @@ final class DictationController {
         let device = dependencies.resolveDevice()
         do {
             try dependencies.startCapture(device.deviceID)
-            dependencies.setCancellationEnabled(true)
+            dependencies.setRecordingEnabled(true)
             dependencies.present(.recording)
             logger.message("recording started · microphone: \(device.displayName)")
         } catch {
             machine.captureFailed()
-            dependencies.setCancellationEnabled(false)
+            dependencies.setRecordingEnabled(false)
             dependencies.present(.idle)
             logger.message("capture failed: \(error)")
         }
     }
 
     private func stopAndTranscribe() {
-        dependencies.setCancellationEnabled(false)
+        dependencies.setRecordingEnabled(false)
         let samples = dependencies.stopCapture()
         let duration = Double(samples.count) / AudioCapture.targetSampleRate
         logger.captureCompleted(duration: duration, rms: computeRMS(samples))
@@ -101,7 +101,7 @@ final class DictationController {
     }
 
     private func cancelCapture() {
-        dependencies.setCancellationEnabled(false)
+        dependencies.setRecordingEnabled(false)
         _ = dependencies.stopCapture()
         dependencies.present(.idle)
         logger.message("recording canceled")

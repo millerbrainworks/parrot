@@ -135,8 +135,8 @@ struct Run: ParsableCommand {
                     injectText: { text in
                         TextInjector.inject(text)
                     },
-                    setCancellationEnabled: { enabled in
-                        monitor.setCancellationEnabled(enabled)
+                    setRecordingEnabled: { enabled in
+                        monitor.setRecordingEnabled(enabled)
                     },
                     present: { state in
                         menuBar.setState(state)
