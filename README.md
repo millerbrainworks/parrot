@@ -57,8 +57,8 @@ saved device preference for reconnection.
 ## Model choice
 
 Base English remains the resilient, low-latency default. Small English and
-Large v3 Turbo remain explicitly selectable and use cached copies when
-available.
+Large v3 Turbo remain selectable only at startup through the CLI `--model`
+option and use cached copies when available.
 
 A one-time exploratory synthetic run on six fixtures (82 words) measured Base
 at 8/82 word errors, 5/10 personal-term errors, 0.636-second median latency,
@@ -75,9 +75,10 @@ seconds, within the 1.5-second limit. A post-benchmark deployment review still
 retained Base: Small's median was 128% slower, had only 48 ms (3.2%) headroom,
 and reached a 1.506-second maximum. Making uncached Small the global default
 would also require a one-time 464 MB download and on-disk cache footprint,
-creating startup and offline-availability risk before the model-selection UI
-is available. Small remains explicitly selectable. Large's result does not
-support production selection and needs separate diagnosis.
+which can delay Parrot startup while it downloads or make startup fail offline
+before the menu-bar service is available. Small remains an explicit startup
+CLI `--model` selection. Large's result does not support production selection
+and needs separate diagnosis.
 
 ## Personal dictionary and filler cleanup
 

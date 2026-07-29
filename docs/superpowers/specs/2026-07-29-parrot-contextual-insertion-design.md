@@ -143,10 +143,11 @@ rule, not an automatic global-default deployment rule.
 Deployment review retained Base because Small's median was 128% slower, left
 only 48 ms (3.2%) headroom below the gate, and reached a 1.506-second maximum.
 Making uncached Small the global default would also require a one-time 464 MB
-download and on-disk cache footprint, creating startup and offline-availability
-risk before the model-selection UI is available. Small remains explicitly
-selectable. Large's result does not support production selection and needs
-separate diagnosis.
+download and on-disk cache footprint, which can delay Parrot startup while it
+downloads or make startup fail offline before the menu-bar service is
+available. Alternative models, including Small and Large, remain selectable
+only at startup through the CLI `--model` option. Large's result does not
+support production selection and needs separate diagnosis.
 
 ## Error handling and privacy
 
