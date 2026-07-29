@@ -34,7 +34,7 @@
 - Create: `Sources/parrot/Input/InsertionBoundaryPolicy.swift`
 - Create: `Tests/parrotTests/InsertionBoundaryPolicyTests.swift`
 
-- [ ] **Step 1: Write the failing boundary matrix**
+- [x] **Step 1: Write the failing boundary matrix**
 
 Create table-driven tests requiring:
 
@@ -50,7 +50,7 @@ XCTAssertEqual(policy.prepare("next", context: .unavailable), "next")
 XCTAssertEqual(policy.prepare(",", context: .caret(previous: "d")), ",")
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run:
 
@@ -60,13 +60,13 @@ swift test --filter InsertionBoundaryPolicyTests
 
 Expected: compilation fails because the policy and context do not exist.
 
-- [ ] **Step 3: Implement the minimum pure policy**
+- [x] **Step 3: Implement the minimum pure policy**
 
 Add `InsertionContext` cases for unavailable, document start, selection, and a
 caret with one preceding `Character`. Add `InsertionBoundaryPolicy.prepare`
 with the exact conservative rules in the design.
 
-- [ ] **Step 4: Run GREEN**
+- [x] **Step 4: Run GREEN**
 
 Run:
 
@@ -76,7 +76,7 @@ swift test --filter InsertionBoundaryPolicyTests
 
 Expected: all boundary cases pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Sources/parrot/Input/InsertionBoundaryPolicy.swift Tests/parrotTests/InsertionBoundaryPolicyTests.swift
@@ -91,7 +91,7 @@ git commit -m "feat: format dictation insertion boundaries"
 - Modify: `Sources/parrot/Parrot.swift`
 - Modify: `Tests/parrotTests/DictationControllerTests.swift`
 
-- [ ] **Step 1: Write the failing orchestration test**
+- [x] **Step 1: Write the failing orchestration test**
 
 Add an injected `prepareInsertion` dependency and require:
 
@@ -111,7 +111,7 @@ XCTAssertEqual(
 The preparation stub returns `" " + text`. This proves history stays semantic
 while correction observation and injection use the exact adjusted string.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run:
 
@@ -121,14 +121,14 @@ swift test --filter DictationControllerTests
 
 Expected: compilation fails because `prepareInsertion` is missing.
 
-- [ ] **Step 3: Integrate preparation at the insertion boundary**
+- [x] **Step 3: Integrate preparation at the insertion boundary**
 
 Add `prepareInsertion: (String) -> String` to `DictationDependencies`. After
 history persistence, compute `insertionText`, prepare correction observation
 with it, inject it, and begin observation. Preserve all existing error and
 state transitions.
 
-- [ ] **Step 4: Add the Accessibility reader**
+- [x] **Step 4: Add the Accessibility reader**
 
 Implement a thin reader that:
 
@@ -142,7 +142,7 @@ Implement a thin reader that:
 Wire `Parrot.swift` so the preparation closure reads context and applies the
 pure policy on the main actor. Do not log adjacent text.
 
-- [ ] **Step 5: Run focused and full tests**
+- [x] **Step 5: Run focused and full tests**
 
 Run:
 
@@ -153,7 +153,7 @@ swift test
 
 Expected: all controller and full-suite tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add Sources/parrot/Input/AccessibilityInsertionContextReader.swift Sources/parrot/Session/DictationController.swift Sources/parrot/Parrot.swift Tests/parrotTests/DictationControllerTests.swift
@@ -166,7 +166,7 @@ git commit -m "feat: space consecutive dictations"
 - Modify: `Sources/parrot/UI/RecordingOverlay.swift`
 - Modify: `Tests/parrotTests/RecordingOverlayModelTests.swift`
 
-- [ ] **Step 1: Change geometry expectations first**
+- [x] **Step 1: Change geometry expectations first**
 
 Require:
 
@@ -181,7 +181,7 @@ XCTAssertEqual(RecordingOverlay.Geometry.waveformBarWidth, 3)
 XCTAssertEqual(RecordingOverlay.Geometry.waveformSpacing, 3)
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run:
 
@@ -191,13 +191,13 @@ swift test --filter RecordingOverlayModelTests/testRecordingOverlayGeometryIsDou
 
 Expected: failures report the existing 192-by-40 values.
 
-- [ ] **Step 3: Apply exact compact geometry**
+- [x] **Step 3: Apply exact compact geometry**
 
 Update only `Geometry` constants. Keep all layout consumers, colors, actions,
 animation, AppKit panel flags, and placement behavior unchanged. Rename the
 geometry test to describe the compact approved size.
 
-- [ ] **Step 4: Run focused and full tests**
+- [x] **Step 4: Run focused and full tests**
 
 Run:
 
@@ -209,7 +209,7 @@ git diff --check
 
 Expected: focused and full tests pass with a clean diff check.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Sources/parrot/UI/RecordingOverlay.swift Tests/parrotTests/RecordingOverlayModelTests.swift
@@ -224,33 +224,33 @@ git commit -m "feat: compact recording controls"
 - Modify only if recommendation changes:
   `Tests/parrotTests/ModelRegistryTests.swift`
 
-- [ ] **Step 1: Generate transient fixtures**
+- [x] **Step 1: Generate transient fixtures**
 
 Use macOS `say` and `afconvert` in a temporary directory to create 16 kHz mono
 audio for ordinary prose, punctuation boundaries, and personal terms. Keep the
 reference strings beside the temporary files for scoring; do not add audio to
 git.
 
-- [ ] **Step 2: Run identical model comparisons**
+- [x] **Step 2: Run identical model comparisons**
 
 Warm and run Base English, Small English, and Large v3 Turbo against the same
 fixtures with the current vocabulary prompt. Record normalized errors, personal
 term errors, median latency, maximum latency, and downloaded size.
 
-- [ ] **Step 3: Apply the quality gate**
+- [x] **Step 3: Apply the quality gate**
 
 Keep Base English unless a candidate reduces errors, avoids material prose
 regression, and has median latency no greater than 1.5 seconds. Delete the
 temporary fixture directory after results are captured.
 
-- [ ] **Step 4: Change recommendation with TDD only if justified**
+- [x] **Step 4: Change recommendation with TDD only if justified**
 
 If a winner clears the gate, first add a failing registry test asserting the
 new recommended model, observe RED, change exactly the `recommended` flags,
 then run the focused and full suite. If no candidate clears the gate, make no
 registry code change.
 
-- [ ] **Step 5: Commit only justified source changes**
+- [x] **Step 5: Commit only justified source changes**
 
 If the recommendation changes:
 
@@ -262,6 +262,26 @@ git commit -m "perf: select measured dictation model"
 If Base remains recommended, record benchmark evidence in the final
 verification documentation commit only.
 
+## Benchmark Results
+
+On 2026-07-29, an exploratory comparison ran on an M4 Mac with 16 GB of memory
+using six synthetic fixtures totaling 82 words. Warmup and download time were
+excluded from latency, and the temporary audio was deleted afterward.
+
+- Base: 8/82 word errors, 5/10 personal-term errors, 0.636-second median,
+  140 MB cache.
+- Small: 4/82 word errors, 3/10 personal-term errors, 1.452-second median,
+  464 MB cache.
+- Large: 74/82 word errors, 8/10 personal-term errors, 0.809-second median,
+  1.984-second maximum, 1.5 GB cache.
+
+These results are exploratory, not statistically robust, and do not identify a
+universally best model. Base remains the resilient low-latency default. Small
+remains explicitly selectable but is not the global default because its median
+latency increased 128%, leaving only 48 ms below the gate, and its first
+download/offline-startup cost is 464 MB. Large remains an explicit exploratory
+selection; its quality failure does not support production selection.
+
 ### Task 5: Documentation, release, and live verification
 
 **Files:**
@@ -269,12 +289,12 @@ verification documentation commit only.
 - Modify: `docs/superpowers/plans/2026-07-29-parrot-contextual-insertion.md`
 - Replace: `/Users/don/.local/bin/parrot`
 
-- [ ] **Step 1: Update user documentation**
+- [x] **Step 1: Update user documentation**
 
 Document cursor-aware spacing, the 144-by-28 bar, semantic history behavior,
 and the measured model decision without exposing benchmark phrase content.
 
-- [ ] **Step 2: Run the completion gate**
+- [x] **Step 2: Run the completion gate**
 
 Run:
 
