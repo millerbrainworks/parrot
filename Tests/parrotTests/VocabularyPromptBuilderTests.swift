@@ -12,7 +12,7 @@ final class VocabularyPromptBuilderTests: XCTestCase {
             return [1, 2, 3, 4, 5]
         }
 
-        XCTAssertEqual(encodedText, "Arcqtype, ARQ")
+        XCTAssertEqual(encodedText, " Arcqtype, ARQ")
         XCTAssertEqual(tokens, [3, 4, 5])
     }
 

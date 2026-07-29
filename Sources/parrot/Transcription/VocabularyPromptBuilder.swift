@@ -14,7 +14,7 @@ enum VocabularyPromptBuilder {
             return clean
         }
         guard !uniqueTerms.isEmpty else { return nil }
-        let encoded = encode(uniqueTerms.joined(separator: ", "))
+        let encoded = encode(" " + uniqueTerms.joined(separator: ", "))
         guard !encoded.isEmpty else { return nil }
         return Array(encoded.suffix(max(0, maximumCount)))
     }

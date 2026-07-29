@@ -34,13 +34,21 @@ actor WhisperKitTranscriber: Transcriber {
                 tokenizer.encode(text: $0)
             }
         }
-        let options = DecodingOptions(promptTokens: promptTokens)
+        let options = Self.makeDecodingOptions(promptTokens: promptTokens)
         let results: [TranscriptionResult] = try await pipeline.transcribe(
             audioArray: audio,
             decodeOptions: options
         )
         let raw = results.map(\.text).joined(separator: " ")
         return Self.sanitize(raw)
+    }
+
+    static func makeDecodingOptions(promptTokens: [Int]?) -> DecodingOptions {
+        guard let promptTokens else { return DecodingOptions() }
+        return DecodingOptions(
+            promptTokens: promptTokens,
+            firstTokenLogProbThreshold: nil
+        )
     }
 
     /// Strip Whisper's non-speech bracket tokens ([BLANK_AUDIO], [MUSIC],
