@@ -287,7 +287,7 @@ git commit -m "feat: add private personal dictionary"
 - Create: `Sources/parrot/Dictionary/TranscriptProcessor.swift`
 - Create: `Tests/parrotTests/TranscriptProcessorTests.swift`
 
-- [ ] **Step 1: Write failing processing tests**
+- [x] **Step 1: Write failing processing tests**
 
 Use table-driven cases for case-insensitive matching, punctuation, longest
 variant first, no substring replacement, filler cleanup, protected
@@ -332,7 +332,7 @@ func testPhraseBoundariesAndLongestVariantWin() {
 }
 ```
 
-- [ ] **Step 2: Run the focused tests and confirm RED**
+- [x] **Step 2: Run the focused tests and confirm RED**
 
 Run:
 
@@ -342,7 +342,7 @@ swift test --filter TranscriptProcessorTests
 
 Expected: compilation fails because `TranscriptProcessor` does not exist.
 
-- [ ] **Step 3: Implement boundary-aware cleanup**
+- [x] **Step 3: Implement boundary-aware cleanup**
 
 Implement:
 
@@ -366,7 +366,7 @@ adjacent comma only when that comma becomes orphaned. Repair spaces before
 `. , ! ? ; :`, collapse repeated horizontal whitespace, and preserve line
 breaks only if present in the raw transcript.
 
-- [ ] **Step 4: Run processing tests and confirm GREEN**
+- [x] **Step 4: Run processing tests and confirm GREEN**
 
 Run:
 
@@ -376,7 +376,7 @@ swift test --filter TranscriptProcessorTests
 
 Expected: all processing tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Sources/parrot/Dictionary/TranscriptProcessor.swift Tests/parrotTests/TranscriptProcessorTests.swift
