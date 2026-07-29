@@ -165,7 +165,7 @@ git commit -m "feat: finish recording with one fn tap"
 - Create: `Sources/parrot/Dictionary/PersonalDictionaryStore.swift`
 - Create: `Tests/parrotTests/PersonalDictionaryStoreTests.swift`
 
-- [ ] **Step 1: Write failing store tests**
+- [x] **Step 1: Write failing store tests**
 
 Cover first-use creation, `0700` directory and `0600` file permissions, exact
 starter replacements, reload after external edit, invalid JSON fallback
@@ -201,7 +201,7 @@ func testLearningMergesVariantWithoutDuplicates() throws {
 }
 ```
 
-- [ ] **Step 2: Run the focused tests and confirm RED**
+- [x] **Step 2: Run the focused tests and confirm RED**
 
 Run:
 
@@ -211,7 +211,7 @@ swift test --filter PersonalDictionaryStoreTests
 
 Expected: compilation fails because the dictionary types do not exist.
 
-- [ ] **Step 3: Implement schema, starter data, validation, and storage**
+- [x] **Step 3: Implement schema, starter data, validation, and storage**
 
 Define:
 
@@ -263,7 +263,7 @@ then replace or move atomically. Reject unsupported versions, blank canonical
 values, empty variants, and blank fillers. Preserve the last valid in-memory
 value on read failure.
 
-- [ ] **Step 4: Run store tests and confirm GREEN**
+- [x] **Step 4: Run store tests and confirm GREEN**
 
 Run:
 
@@ -273,7 +273,7 @@ swift test --filter PersonalDictionaryStoreTests
 
 Expected: all store tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Sources/parrot/Dictionary Tests/parrotTests/PersonalDictionaryStoreTests.swift
