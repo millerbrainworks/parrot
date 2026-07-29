@@ -12,16 +12,38 @@ enum TextInjector {
     static func inject(_ text: String) {
         guard !text.isEmpty else { return }
 
-        let utf16 = Array(text.utf16)
-        let chunkSize = 20
-        var index = 0
-
-        while index < utf16.count {
-            let end = min(index + chunkSize, utf16.count)
-            var chunk = Array(utf16[index..<end])
+        for var chunk in utf16Chunks(for: text) {
             postChunk(&chunk)
-            index = end
         }
+    }
+
+    static func utf16Chunks(for text: String) -> [[UniChar]] {
+        let units = Array(text.utf16)
+        var chunks: [[UniChar]] = []
+        var start = 0
+
+        while start < units.count {
+            var end = min(start + 20, units.count)
+            if
+                end < units.count,
+                isHighSurrogate(units[end - 1]),
+                isLowSurrogate(units[end])
+            {
+                end -= 1
+            }
+
+            chunks.append(Array(units[start..<end]))
+            start = end
+        }
+        return chunks
+    }
+
+    private static func isHighSurrogate(_ unit: UniChar) -> Bool {
+        (0xD800...0xDBFF).contains(unit)
+    }
+
+    private static func isLowSurrogate(_ unit: UniChar) -> Bool {
+        (0xDC00...0xDFFF).contains(unit)
     }
 
     private static func postChunk(_ chunk: inout [UniChar]) {

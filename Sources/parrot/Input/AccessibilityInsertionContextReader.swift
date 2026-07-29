@@ -1,4 +1,5 @@
 import ApplicationServices
+import AppKit
 import Foundation
 
 struct AccessibilityInsertionContextReader {
@@ -11,6 +12,12 @@ struct AccessibilityInsertionContextReader {
 
     private enum OptionalStringAttribute {
         case value(String)
+        case absent
+        case failure
+    }
+
+    enum OptionalBooleanAttribute: Equatable {
+        case value(Bool)
         case absent
         case failure
     }
@@ -51,14 +58,49 @@ struct AccessibilityInsertionContextReader {
             return .unavailable
         }
 
-        guard
-            !Self.isSensitive(role: role, subrole: subrole),
-            let selectedRange = selectedRange(from: element)
-        else {
+        let protectedContent = optionalBooleanAttribute(
+            NSAccessibility.Attribute.containsProtectedContent.rawValue,
+            from: element
+        )
+        return Self.resolve(
+            role: role,
+            subrole: subrole,
+            protectedContent: protectedContent,
+            selectedRange: {
+                selectedRange(from: element)
+            },
+            precedingCharacter: { location, length in
+                precedingCharacter(
+                    from: element,
+                    location: location,
+                    length: length
+                )
+            }
+        )
+    }
+
+    static func resolve(
+        role: String,
+        subrole: String?,
+        protectedContent: OptionalBooleanAttribute,
+        selectedRange: () -> CFRange?,
+        precedingCharacter: (Int, Int) -> Character?
+    ) -> InsertionContext {
+        guard !isSensitive(role: role, subrole: subrole) else {
             return .unavailable
         }
 
-        switch Self.plan(for: selectedRange) {
+        switch protectedContent {
+        case .value(true), .failure:
+            return .unavailable
+        case .value(false), .absent:
+            break
+        }
+
+        guard let selectedRange = selectedRange() else {
+            return .unavailable
+        }
+        switch plan(for: selectedRange) {
         case .unavailable:
             return .unavailable
         case .selection:
@@ -66,11 +108,7 @@ struct AccessibilityInsertionContextReader {
         case .documentStart:
             return .documentStart
         case let .precedingText(location, length):
-            guard let previous = precedingCharacter(
-                from: element,
-                location: location,
-                length: length
-            ) else {
+            guard let previous = precedingCharacter(location, length) else {
                 return .unavailable
             }
             return .caret(previous: previous)
@@ -126,6 +164,39 @@ struct AccessibilityInsertionContextReader {
                 return .failure
             }
             return .value(string)
+        case .noValue, .attributeUnsupported:
+            return .absent
+        default:
+            return .failure
+        }
+    }
+
+    private func optionalBooleanAttribute(
+        _ attribute: String,
+        from element: AXUIElement
+    ) -> OptionalBooleanAttribute {
+        var value: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(
+            element,
+            attribute as CFString,
+            &value
+        )
+        return Self.parseOptionalBoolean(result: result, value: value)
+    }
+
+    static func parseOptionalBoolean(
+        result: AXError,
+        value: CFTypeRef?
+    ) -> OptionalBooleanAttribute {
+        switch result {
+        case .success:
+            guard
+                let value,
+                CFGetTypeID(value) == CFBooleanGetTypeID()
+            else {
+                return .failure
+            }
+            return .value(CFBooleanGetValue((value as! CFBoolean)))
         case .noValue, .attributeUnsupported:
             return .absent
         default:

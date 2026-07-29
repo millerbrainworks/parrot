@@ -74,4 +74,93 @@ final class AccessibilityInsertionContextReaderTests: XCTestCase {
             )
         )
     }
+
+    func testProtectedContentStopsBeforeSelectedRangeOrAdjacentTextReads() {
+        var selectedRangeReadCount = 0
+        var adjacentTextReadCount = 0
+
+        let context = AccessibilityInsertionContextReader.resolve(
+            role: "AXTextArea",
+            subrole: nil,
+            protectedContent: .value(true),
+            selectedRange: {
+                selectedRangeReadCount += 1
+                return CFRange(location: 1, length: 0)
+            },
+            precedingCharacter: { _, _ in
+                adjacentTextReadCount += 1
+                return "x"
+            }
+        )
+
+        guard case .unavailable = context else {
+            return XCTFail("expected protected content to be unavailable")
+        }
+        XCTAssertEqual(selectedRangeReadCount, 0)
+        XCTAssertEqual(adjacentTextReadCount, 0)
+    }
+
+    func testAbsentProtectedContentAttributeKeepsOrdinaryControlsWorking() {
+        var selectedRangeReadCount = 0
+        var adjacentTextReadCount = 0
+
+        let context = AccessibilityInsertionContextReader.resolve(
+            role: "AXTextArea",
+            subrole: nil,
+            protectedContent: .absent,
+            selectedRange: {
+                selectedRangeReadCount += 1
+                return CFRange(location: 1, length: 0)
+            },
+            precedingCharacter: { _, _ in
+                adjacentTextReadCount += 1
+                return "x"
+            }
+        )
+
+        guard case let .caret(previous) = context else {
+            return XCTFail("expected ordinary content to return caret context")
+        }
+        XCTAssertEqual(previous, "x")
+        XCTAssertEqual(selectedRangeReadCount, 1)
+        XCTAssertEqual(adjacentTextReadCount, 1)
+    }
+
+    func testProtectedContentAttributeParsingFailsClosed() {
+        XCTAssertEqual(
+            AccessibilityInsertionContextReader.parseOptionalBoolean(
+                result: .success,
+                value: kCFBooleanTrue
+            ),
+            .value(true)
+        )
+        XCTAssertEqual(
+            AccessibilityInsertionContextReader.parseOptionalBoolean(
+                result: .noValue,
+                value: nil
+            ),
+            .absent
+        )
+        XCTAssertEqual(
+            AccessibilityInsertionContextReader.parseOptionalBoolean(
+                result: .attributeUnsupported,
+                value: nil
+            ),
+            .absent
+        )
+        XCTAssertEqual(
+            AccessibilityInsertionContextReader.parseOptionalBoolean(
+                result: .success,
+                value: "true" as CFString
+            ),
+            .failure
+        )
+        XCTAssertEqual(
+            AccessibilityInsertionContextReader.parseOptionalBoolean(
+                result: .cannotComplete,
+                value: nil
+            ),
+            .failure
+        )
+    }
 }
