@@ -150,6 +150,12 @@ struct Run: ParsableCommand {
                     destinationApplication: {
                         DestinationApplication.currentName()
                     },
+                    prepareInsertion: { text in
+                        InsertionBoundaryPolicy().prepare(
+                            text,
+                            context: AccessibilityInsertionContextReader().read()
+                        )
+                    },
                     injectText: { text in
                         TextInjector.inject(text)
                     },

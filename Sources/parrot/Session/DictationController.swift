@@ -10,6 +10,7 @@ struct DictationDependencies {
     let processTranscript: (String, PersonalDictionary) -> String
     let writeHistory: (String, String) throws -> Void
     let destinationApplication: () -> String
+    let prepareInsertion: (String) -> String
     let injectText: (String) -> Void
     let setRecordingEnabled: (Bool) -> Void
     let dictionaryWarningChanged: (String?) -> Void
@@ -146,8 +147,9 @@ final class DictationController {
                 logger.message("history write failed: \(error)")
             }
 
-            dependencies.prepareCorrectionObservation(text)
-            dependencies.injectText(text)
+            let insertionText = dependencies.prepareInsertion(text)
+            dependencies.prepareCorrectionObservation(insertionText)
+            dependencies.injectText(insertionText)
             dependencies.beginCorrectionObservation()
             machine.finish()
             dependencies.present(.idle)

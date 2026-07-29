@@ -146,6 +146,47 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(warnings, ["Personal Dictionary Needs Attention"])
     }
 
+    func testKeepsProcessedTextInHistoryAndUsesPreparedTextForInsertion() async {
+        let observationBegan = expectation(description: "observation began")
+        var operations: [String] = []
+        let controller = makeController(
+            stopCapture: { [0.1] },
+            transcribe: { _, _ in "It's ready." },
+            writeHistory: { text, app in
+                operations.append("history:\(app):\(text)")
+            },
+            prepareInsertion: { text in
+                operations.append("prepare:\(text)")
+                return " " + text
+            },
+            injectText: { text in
+                operations.append("inject:\(text)")
+            },
+            prepareCorrectionObservation: { text in
+                operations.append("observe:\(text)")
+            },
+            beginCorrectionObservation: {
+                operations.append("begin")
+                observationBegan.fulfill()
+            }
+        )
+
+        controller.handle(.startRecording)
+        controller.handle(.finishRecording)
+        await fulfillment(of: [observationBegan], timeout: 1)
+
+        XCTAssertEqual(
+            operations,
+            [
+                "history:Codex:It's ready.",
+                "prepare:It's ready.",
+                "observe: It's ready.",
+                "inject: It's ready.",
+                "begin",
+            ]
+        )
+    }
+
     func testCorrectionObservationIsBoundedAroundInsertion() async {
         let injected = expectation(description: "observation began")
         var operations: [String] = []
@@ -183,6 +224,7 @@ final class DictationControllerTests: XCTestCase {
         },
         transcribe: @escaping ([Float], [String]) async throws -> String = { _, _ in "" },
         writeHistory: @escaping (String, String) throws -> Void = { _, _ in },
+        prepareInsertion: @escaping (String) -> String = { $0 },
         injectText: @escaping (String) -> Void = { _ in },
         setRecordingEnabled: @escaping (Bool) -> Void = { _ in },
         dictionaryWarningChanged: @escaping (String?) -> Void = { _ in },
@@ -210,6 +252,7 @@ final class DictationControllerTests: XCTestCase {
                 },
                 writeHistory: writeHistory,
                 destinationApplication: { "Codex" },
+                prepareInsertion: prepareInsertion,
                 injectText: injectText,
                 setRecordingEnabled: setRecordingEnabled,
                 dictionaryWarningChanged: dictionaryWarningChanged,
