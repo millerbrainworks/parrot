@@ -589,7 +589,7 @@ git commit -m "feat: add recording bar finish and cancel controls"
 - Create: `Sources/parrot/Learning/CorrectionDiff.swift`
 - Create: `Tests/parrotTests/CorrectionDiffTests.swift`
 
-- [ ] **Step 1: Write failing correction-diff tests**
+- [x] **Step 1: Write failing correction-diff tests**
 
 ```swift
 func testFindsOneLocalizedSubstitution() {
@@ -614,7 +614,7 @@ func testRejectsInsertionDeletionAndMultipleEdits() {
 }
 ```
 
-- [ ] **Step 2: Run the focused tests and confirm RED**
+- [x] **Step 2: Run the focused tests and confirm RED**
 
 Run:
 
@@ -624,7 +624,7 @@ swift test --filter CorrectionDiffTests
 
 Expected: compilation fails because the correction types do not exist.
 
-- [ ] **Step 3: Implement the pure proposal detector**
+- [x] **Step 3: Implement the pure proposal detector**
 
 Define:
 
@@ -646,7 +646,7 @@ Reject changes containing a newline or edits where either middle contains
 more than eight whitespace-delimited words. This accepts one localized
 substitution while rejecting pure insertions, deletions, and broad rewrites.
 
-- [ ] **Step 4: Run correction tests and confirm GREEN**
+- [x] **Step 4: Run correction tests and confirm GREEN**
 
 Run:
 
@@ -656,7 +656,7 @@ swift test --filter CorrectionDiffTests
 
 Expected: all correction-diff tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Sources/parrot/Learning/CorrectionDiff.swift Tests/parrotTests/CorrectionDiffTests.swift
