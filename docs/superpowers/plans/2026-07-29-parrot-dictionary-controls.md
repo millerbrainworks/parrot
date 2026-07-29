@@ -882,7 +882,7 @@ and the service log shows readiness without transcript or correction text.
 
 Verify on the physical Mac:
 
-1. double-tap Fn opens the 96-by-20 recording bar;
+1. double-tap Fn opens the 192-by-40 recording bar;
 2. one new Fn tap finishes and inserts;
 3. Escape and `×` cancel;
 4. `✓` finishes without stealing cursor focus;
@@ -911,3 +911,123 @@ launchctl print gui/$(id -u)/com.digimata.parrot
 
 Expected: tests and release build pass, the worktree is clean, and the
 LaunchAgent remains running.
+
+### Task 9: Repair WhisperKit vocabulary prompting
+
+**Files:**
+- Modify: `Tests/parrotTests/VocabularyPromptBuilderTests.swift`
+- Modify: `Sources/parrot/Transcription/VocabularyPromptBuilder.swift`
+
+- [ ] **Step 1: Require WhisperKit-compatible prompt text**
+
+Change the prompt-builder test to assert that the encoder receives a leading
+space:
+
+```swift
+XCTAssertEqual(encodedText, " Arcqtype, ARQ")
+```
+
+- [ ] **Step 2: Run the focused test and verify the regression**
+
+Run:
+
+```bash
+swift test --filter VocabularyPromptBuilderTests
+```
+
+Expected: FAIL because the encoder currently receives `Arcqtype, ARQ`.
+
+- [ ] **Step 3: Add the leading space**
+
+Encode `" " + uniqueTerms.joined(separator: ", ")` while retaining the
+existing deduplication and token cap.
+
+- [ ] **Step 4: Run focused and deterministic transcription tests**
+
+Run the prompt-builder test, then the local synthetic-audio diagnostic that
+previously returned an empty prompted transcript.
+
+Expected: both the builder test and prompted transcription pass.
+
+- [ ] **Step 5: Commit the regression fix**
+
+```bash
+git add Sources/parrot/Transcription/VocabularyPromptBuilder.swift Tests/parrotTests/VocabularyPromptBuilderTests.swift
+git commit -m "fix: preserve transcription with vocabulary prompts"
+```
+
+### Task 10: Enlarge the recording bar proportionally
+
+**Files:**
+- Modify: `Sources/parrot/UI/RecordingOverlay.swift`
+- Modify: `Tests/parrotTests/RecordingOverlayModelTests.swift`
+
+- [ ] **Step 1: Add failing geometry assertions**
+
+Expose immutable overlay geometry and assert:
+
+```swift
+XCTAssertEqual(RecordingOverlay.Geometry.panelWidth, 192)
+XCTAssertEqual(RecordingOverlay.Geometry.panelHeight, 40)
+XCTAssertEqual(RecordingOverlay.Geometry.buttonWidth, 52)
+XCTAssertEqual(RecordingOverlay.Geometry.waveformWidth, 88)
+```
+
+- [ ] **Step 2: Run the focused test and verify RED**
+
+Run:
+
+```bash
+swift test --filter RecordingOverlayModelTests
+```
+
+Expected: compilation fails because `Geometry` is not defined.
+
+- [ ] **Step 3: Implement proportional geometry**
+
+Add the immutable constants and use them for the panel, SwiftUI content,
+buttons, and waveform. Double icon size, waveform height, waveform bar width,
+and waveform spacing while retaining the same capsule, bottom-center position,
+click behavior, and non-activating focus behavior.
+
+- [ ] **Step 4: Run focused and full verification**
+
+Run:
+
+```bash
+swift test --filter RecordingOverlayModelTests
+swift test
+swift build -c release
+```
+
+Expected: all tests and the release build pass.
+
+- [ ] **Step 5: Commit the resize**
+
+```bash
+git add Sources/parrot/UI/RecordingOverlay.swift Tests/parrotTests/RecordingOverlayModelTests.swift
+git commit -m "feat: enlarge recording controls"
+```
+
+### Task 11: Install once and verify the live path
+
+**Files:**
+- Modify: `/Users/don/.local/bin/parrot`
+
+- [ ] **Step 1: Sign and install the final release**
+
+Ad-hoc sign the final release, preserve the current installed binary as the
+existing `.previous` recovery copy, install the new executable, and restart
+`com.digimata.parrot`.
+
+- [ ] **Step 2: Restore Accessibility trust**
+
+Because ad-hoc signing changes the executable's code hash, have the user remove
+and re-add `/Users/don/.local/bin/parrot` in Accessibility once after the final
+install, then restart the LaunchAgent.
+
+- [ ] **Step 3: Verify the complete live path**
+
+Confirm the service is running, a spoken phrase creates a new private history
+entry, and the same processed text appears at the active cursor. Confirm the
+192-by-40 overlay remains clickable and non-activating.

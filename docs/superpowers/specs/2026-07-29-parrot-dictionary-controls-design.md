@@ -54,7 +54,7 @@ injecting are ignored. Parrot continues to prohibit overlapping sessions.
 ### Recording bar
 
 The recording bar is a non-activating, always-on-top panel centered near the
-bottom of the active screen. Its panel frame is 96 points wide by 20 points
+bottom of the active screen. Its panel frame is 192 points wide by 40 points
 high and contains, from left to right:
 
 1. a red cancel button marked `×`;
@@ -264,8 +264,10 @@ adjacent to a match is preserved.
 Personal terms are also supplied to Whisper as prompt vocabulary when the
 installed WhisperKit API supports prompt tokens. Prompt bias is an aid, not the
 source of truth: deterministic post-processing remains responsible for
-canonical variants. If prompt token construction fails, transcription
-continues without bias.
+canonical variants. Prompt text follows WhisperKit's native CLI convention:
+it begins with one leading space and excludes special tokens. This prevents a
+non-empty vocabulary from yielding an empty transcription. If prompt token
+construction fails, transcription continues without bias.
 
 Only the final processed text is written to history and inserted. Diagnostic
 logs never include raw text, processed text, dictionary entries, or correction
@@ -328,7 +330,7 @@ to diagnostic logs. Ignored and expired suggestions are not persisted.
 - `HotkeyMonitor` and its pure gesture policy translate idle Fn double-taps,
   recording Fn single-taps, and recording Escape presses into controller
   commands.
-- `RecordingPanelController` owns the 96-by-20 non-activating panel and exposes
+- `RecordingPanelController` owns the 192-by-40 non-activating panel and exposes
   cancel and finish callbacks without owning session state.
 - `PersonalDictionaryStore` creates, loads, validates, atomically updates, and
   opens the JSON file.
@@ -416,7 +418,7 @@ Manual macOS verification covers:
 - double-tap Fn start followed by single-tap Fn finish;
 - Escape and the red button canceling without insertion;
 - the green button finishing without stealing destination focus;
-- the 96-by-20 bar's legibility and placement;
+- the 192-by-40 bar's legibility and placement;
 - live dictionary editing and next-dictation reload;
 - `Arcqtype` and explicit phrase replacement in Codex and another Mac app;
 - conservative filler removal in a natural dictation;
@@ -431,7 +433,7 @@ Manual macOS verification covers:
 The change is complete when Parrot starts with the existing login service,
 starts recording on an idle Fn double-tap, finishes on one recording-state Fn
 tap or the green button, cancels on Escape or the red button, displays a
-usable 96-by-20 recording bar, applies the local dictionary and conservative
+usable 192-by-40 recording bar, applies the local dictionary and conservative
 filler cleanup before history and insertion, safely reloads manual dictionary
 edits, and offers explicit menu-bar learning confirmation for supported
 localized corrections without monitoring or logging unrelated text.
