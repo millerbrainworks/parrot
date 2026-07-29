@@ -15,6 +15,17 @@ final class RecordingOverlay {
         case transcribing
     }
 
+    enum Geometry {
+        static let panelWidth: CGFloat = 192
+        static let panelHeight: CGFloat = 40
+        static let buttonWidth: CGFloat = 52
+        static let waveformWidth: CGFloat = 88
+        static let waveformHeight: CGFloat = 28
+        static let iconSize: CGFloat = 16
+        static let waveformBarWidth: CGFloat = 4
+        static let waveformSpacing: CGFloat = 4
+    }
+
     private var window: NSPanel?
     private let model: OverlayModel
 
@@ -66,7 +77,12 @@ final class RecordingOverlay {
     private func ensureWindow() {
         if window != nil { return }
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 96, height: 20),
+            contentRect: NSRect(
+                x: 0,
+                y: 0,
+                width: Geometry.panelWidth,
+                height: Geometry.panelHeight
+            ),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -148,7 +164,10 @@ private struct OverlayPill: View {
 
     var body: some View {
         content
-            .frame(width: 96, height: 20)
+            .frame(
+                width: RecordingOverlay.Geometry.panelWidth,
+                height: RecordingOverlay.Geometry.panelHeight
+            )
             .background(
                 Capsule()
                     .fill(Color(red: 16/255, green: 18/255, blue: 18/255))
@@ -167,33 +186,48 @@ private struct OverlayPill: View {
             HStack(spacing: 0) {
                 Button(action: model.cancel) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.system(size: RecordingOverlay.Geometry.iconSize, weight: .bold))
                         .foregroundStyle(.red)
-                        .frame(width: 26, height: 20)
+                        .frame(
+                            width: RecordingOverlay.Geometry.buttonWidth,
+                            height: RecordingOverlay.Geometry.panelHeight
+                        )
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .focusable(false)
 
                 Waveform(levels: model.levels)
-                    .frame(width: 44, height: 14)
+                    .frame(
+                        width: RecordingOverlay.Geometry.waveformWidth,
+                        height: RecordingOverlay.Geometry.waveformHeight
+                    )
 
                 Button(action: model.finish) {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.system(size: RecordingOverlay.Geometry.iconSize, weight: .bold))
                         .foregroundStyle(.green)
-                        .frame(width: 26, height: 20)
+                        .frame(
+                            width: RecordingOverlay.Geometry.buttonWidth,
+                            height: RecordingOverlay.Geometry.panelHeight
+                        )
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .focusable(false)
             }
-            .frame(width: 96, height: 20)
+            .frame(
+                width: RecordingOverlay.Geometry.panelWidth,
+                height: RecordingOverlay.Geometry.panelHeight
+            )
         case .transcribing:
             ProgressView()
                 .controlSize(.small)
                 .scaleEffect(0.65)
-                .frame(width: 96, height: 20)
+                .frame(
+                    width: RecordingOverlay.Geometry.panelWidth,
+                    height: RecordingOverlay.Geometry.panelHeight
+                )
         }
     }
 }
@@ -203,11 +237,11 @@ private struct Waveform: View {
     private let color = Color(red: 181/255.0, green: 209/255.0, blue: 255/255.0)
 
     var body: some View {
-        HStack(alignment: .center, spacing: 2) {
+        HStack(alignment: .center, spacing: RecordingOverlay.Geometry.waveformSpacing) {
             ForEach(Array(levels.enumerated()), id: \.offset) { _, level in
                 Capsule()
                     .fill(color)
-                    .frame(width: 2)
+                    .frame(width: RecordingOverlay.Geometry.waveformBarWidth)
                     .frame(maxHeight: .infinity)
                     .scaleEffect(y: max(0.10, CGFloat(level)), anchor: .center)
                     .animation(.easeOut(duration: 0.09), value: level)
