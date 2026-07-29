@@ -7,7 +7,7 @@ import WhisperKit
 struct Parrot: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "parrot",
-        abstract: "Minimal macOS dictation daemon. Hold Fn, speak, release.",
+        abstract: "Minimal macOS dictation daemon. Double-tap Fn to start and stop.",
         subcommands: [Run.self, Setup.self, Doctor.self, Models.self, Install.self],
         defaultSubcommand: Run.self
     )
@@ -89,84 +89,70 @@ struct Run: ParsableCommand {
             capture.onLevel = { level in overlay.pushLevel(level) }
         }
         let menuBar = MainActor.assumeIsolated { MenuBarController(modelID: chosenModel.id) }
-        var isRecording = false
-
-        do {
-            try monitor.start { event in
-                switch event {
-                case .toggleRecording where !isRecording:
-                    do {
-                        try capture.start()
-                        isRecording = true
-                        monitor.setCancellationEnabled(true)
-                        FileHandle.standardError.write(Data("● recording\n".utf8))
-                        MainActor.assumeIsolated {
+        let historyWriter = HistoryWriter()
+        let preferencesStore = PreferencesStore()
+        let deviceCatalog = AudioDeviceCatalog()
+        let logger = DiagnosticLogger()
+        let controller = MainActor.assumeIsolated {
+            DictationController(
+                dependencies: DictationDependencies(
+                    resolveDevice: {
+                        let preferences: ParrotPreferences
+                        do {
+                            preferences = try preferencesStore.load()
+                        } catch {
+                            logger.message("preferences load failed: \(error)")
+                            preferences = ParrotPreferences()
+                        }
+                        return deviceCatalog.resolve(savedUID: preferences.microphoneUID)
+                    },
+                    startCapture: { deviceID in
+                        try capture.start(deviceID: deviceID)
+                    },
+                    stopCapture: {
+                        capture.stop()
+                    },
+                    transcribe: { samples in
+                        try await transcriber.transcribe(samples)
+                    },
+                    writeHistory: { text, applicationName in
+                        _ = try historyWriter.append(
+                            text: text,
+                            applicationName: applicationName
+                        )
+                    },
+                    destinationApplication: {
+                        DestinationApplication.currentName()
+                    },
+                    injectText: { text in
+                        TextInjector.inject(text)
+                    },
+                    setCancellationEnabled: { enabled in
+                        monitor.setCancellationEnabled(enabled)
+                    },
+                    present: { state in
+                        switch state {
+                        case .recording:
                             overlay?.show(.recording)
                             menuBar.setRecording(true)
-                        }
-                    } catch {
-                        FileHandle.standardError.write(Data("capture failed: \(error)\n".utf8))
-                    }
-                case .toggleRecording:
-                    isRecording = false
-                    monitor.setCancellationEnabled(false)
-                    let samples = capture.stop()
-                    MainActor.assumeIsolated {
-                        overlay?.show(.transcribing)
-                        menuBar.setTranscribing()
-                    }
-                    let seconds = Double(samples.count) / AudioCapture.targetSampleRate
-                    let rms = computeRMS(samples)
-                    FileHandle.standardError.write(Data(
-                        String(format: "○ captured %.2fs · rms %.3f\n", seconds, rms).utf8
-                    ))
-                    if dumpWav, !samples.isEmpty {
-                        let path = "/tmp/parrot-last.wav"
-                        do {
-                            try WAVWriter.write(samples: samples, sampleRate: 16_000, to: path)
-                            FileHandle.standardError.write(Data("  wrote \(path)\n".utf8))
-                        } catch {
-                            FileHandle.standardError.write(Data("  wav write failed: \(error)\n".utf8))
-                        }
-                    }
-                    guard !samples.isEmpty else {
-                        MainActor.assumeIsolated {
+                        case .transcribing, .injecting:
+                            overlay?.show(.transcribing)
+                            menuBar.setTranscribing()
+                        case .idle:
                             overlay?.hide()
                             menuBar.setRecording(false)
                         }
-                        return
                     }
-                    Task {
-                        let started = Date()
-                        do {
-                            let text = try await transcriber.transcribe(samples)
-                            let elapsed = Date().timeIntervalSince(started)
-                            FileHandle.standardError.write(Data(
-                                String(format: "→ %.2fs · %@\n", elapsed, text).utf8
-                            ))
-                            await MainActor.run {
-                                TextInjector.inject(text)
-                                overlay?.hide()
-                                menuBar.setRecording(false)
-                            }
-                        } catch {
-                            FileHandle.standardError.write(Data("transcription failed: \(error)\n".utf8))
-                            await MainActor.run {
-                                overlay?.hide()
-                                menuBar.setRecording(false)
-                            }
-                        }
-                    }
-                case .cancelRecording:
-                    guard isRecording else { return }
-                    isRecording = false
-                    monitor.setCancellationEnabled(false)
-                    _ = capture.stop()
-                    FileHandle.standardError.write(Data("recording canceled\n".utf8))
-                    MainActor.assumeIsolated {
-                        overlay?.hide()
-                        menuBar.setRecording(false)
-                    }
+                ),
+                dumpWav: dumpWav,
+                logger: logger
+            )
+        }
+
+        do {
+            try monitor.start { event in
+                Task { @MainActor in
+                    controller.handle(event)
                 }
             }
         } catch {
@@ -184,7 +170,9 @@ struct Run: ParsableCommand {
         sigint.resume()
         signal(SIGINT, SIG_IGN)
 
-        FileHandle.standardError.write(Data("listening on fn hold · model: \(chosenModel.id) · ^C to quit\n".utf8))
+        FileHandle.standardError.write(
+            Data("listening for fn double-tap · model: \(chosenModel.id) · ^C to quit\n".utf8)
+        )
         app.run()
     }
 }
