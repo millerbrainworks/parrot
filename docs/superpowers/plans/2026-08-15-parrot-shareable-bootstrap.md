@@ -4,9 +4,9 @@
 
 **Goal:** Publish the owner's current Parrot as an immutable binary release and provide one small Markdown file that a friend can give to Codex for safe installation.
 
-**Architecture:** `PARROT_BOOTSTRAP.md` is the complete recipient handoff and pins release `v0.1.0`. A repository-only shell contract test validates the Markdown's safety properties and shell syntax, while the existing GitHub Actions release workflow builds the arm64 binary and publishes the Markdown, archive, and checksum together.
+**Architecture:** `PARROT_BOOTSTRAP.md` is the complete recipient handoff and pins release `v0.1.0`. A repository-only shell contract test validates the Markdown's safety properties and shell syntax. The release packages the already-built binary that is byte-for-byte identical to the owner's installed app, avoiding a behavior-changing migration from WhisperKit `v0.18.0` to its breaking Swift-6-compatible `v1.0` package.
 
-**Tech Stack:** Markdown, Bash 3.2-compatible shell, macOS built-in command-line tools, Swift Package Manager, GitHub Actions, GitHub Releases
+**Tech Stack:** Markdown, Bash 3.2-compatible shell, macOS built-in command-line tools, GitHub CLI, GitHub Releases
 
 **Spec:** `docs/superpowers/specs/2026-08-15-parrot-shareable-bootstrap-design.md`
 
@@ -15,6 +15,7 @@
 - Supported host: Apple Silicon running macOS 14 or newer.
 - Install the executable at `~/.local/bin/parrot` without `sudo`.
 - Pin release tag `v0.1.0`; never resolve an unspecified future latest release.
+- The unarchived release binary must have SHA-256 `b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a0`.
 - Verify `parrot-macos-arm64.tar.gz` with `parrot-macos-arm64.tar.gz.sha256` before extraction or installation.
 - Preserve existing history, preferences, cached models, and personal dictionary data.
 - Do not change Parrot's dictation behavior.
@@ -282,91 +283,17 @@ git add PARROT_BOOTSTRAP.md scripts/test-bootstrap-doc.sh
 git commit -m "feat: add shareable Parrot bootstrap"
 ```
 
-### Task 2: Publish the bootstrap with release assets
-
-**Files:**
-- Modify: `scripts/test-bootstrap-doc.sh`
-- Modify: `.github/workflows/release.yml`
-
-**Interfaces:**
-- Consumes: `scripts/test-bootstrap-doc.sh`, `PARROT_BOOTSTRAP.md`, and the existing release workflow's `dist/` directory
-- Produces: a release workflow that validates the bootstrap and uploads `PARROT_BOOTSTRAP.md` beside the binary archive and checksum
-
-- [ ] **Step 1: Extend the contract test with failing workflow assertions**
-
-Append before the final success message in `scripts/test-bootstrap-doc.sh`:
-
-```bash
-workflow='.github/workflows/release.yml'
-[ -f "$workflow" ] || fail "missing $workflow"
-grep -Fq 'run: scripts/test-bootstrap-doc.sh' "$workflow" || \
-    fail "release workflow does not validate the bootstrap"
-grep -Fq 'cp PARROT_BOOTSTRAP.md dist/PARROT_BOOTSTRAP.md' "$workflow" || \
-    fail "release workflow does not stage the bootstrap"
-grep -Eq '^[[:space:]]+dist/PARROT_BOOTSTRAP\.md$' "$workflow" || \
-    fail "release workflow does not publish the bootstrap"
-```
-
-- [ ] **Step 2: Run the test and verify it fails**
-
-Run:
-
-```bash
-scripts/test-bootstrap-doc.sh
-```
-
-Expected: exit 1 with `release workflow does not validate the bootstrap`.
-
-- [ ] **Step 3: Update the release workflow**
-
-In `.github/workflows/release.yml`, add this step after checkout and before the Swift version step:
-
-```yaml
-      - name: validate bootstrap document
-        run: scripts/test-bootstrap-doc.sh
-```
-
-Add this line to the existing `stage` step after copying the binary:
-
-```bash
-          cp PARROT_BOOTSTRAP.md dist/PARROT_BOOTSTRAP.md
-```
-
-Add this asset to the existing `files:` block for `softprops/action-gh-release`:
-
-```yaml
-            dist/PARROT_BOOTSTRAP.md
-```
-
-- [ ] **Step 4: Run focused and repository tests**
-
-Run:
-
-```bash
-scripts/test-bootstrap-doc.sh
-git diff --check
-swift test
-```
-
-Expected: the bootstrap contract passes, the diff check exits zero, and all Swift tests pass.
-
-- [ ] **Step 5: Commit the release integration**
-
-```bash
-git add scripts/test-bootstrap-doc.sh .github/workflows/release.yml
-git commit -m "ci: publish Parrot bootstrap with releases"
-```
-
-### Task 3: Verify and publish release `v0.1.0`
+### Task 2: Verify and publish release `v0.1.0`
 
 **Files:**
 - Verify: `PARROT_BOOTSTRAP.md`
-- Verify: `.github/workflows/release.yml`
-- Generated locally and removed after verification: `dist/parrot`, `dist/parrot-macos-arm64.tar.gz`, `dist/parrot-macos-arm64.tar.gz.sha256`
+- Verify: `.build/release/parrot`
+- Verify: `/Users/don/.local/bin/parrot`
+- Generate in a temporary directory: `PARROT_BOOTSTRAP.md`, `parrot`, `parrot-macos-arm64.tar.gz`, `parrot-macos-arm64.tar.gz.sha256`
 
 **Interfaces:**
-- Consumes: the clean committed repository, GitHub remote `origin`, and authenticated GitHub CLI access
-- Produces: immutable tag `v0.1.0` and a public GitHub release with exactly three assets
+- Consumes: the clean committed repository, the exact current Parrot binary, GitHub remote `origin`, and authenticated GitHub CLI access
+- Produces: remote source branch `custom/dictionary-controls`, immutable tag `v0.1.0`, and a public GitHub release with exactly three assets
 
 - [ ] **Step 1: Verify release identity and authentication without changing remote state**
 
@@ -376,58 +303,68 @@ Run:
 git status --short --branch
 git tag --list v0.1.0
 git ls-remote --tags origin refs/tags/v0.1.0
+git ls-remote --heads origin refs/heads/custom/dictionary-controls
 gh auth status
 ```
 
-Expected: clean `custom/dictionary-controls`, no local or remote `v0.1.0` tag, and authenticated access to `digimata/parrot`.
+Expected: clean `custom/dictionary-controls`, no local or remote `v0.1.0` tag, and authenticated access to `digimata/parrot`. Record whether the source branch already exists remotely before pushing it.
 
-- [ ] **Step 2: Run the complete local release gate**
+- [ ] **Step 2: Verify the exact current binary**
 
 Run:
 
 ```bash
 scripts/test-bootstrap-doc.sh
-swift test
-swift build -c release --arch arm64
+expected_binary_sha='b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a0'
+test "$(shasum -a 256 .build/release/parrot | awk '{print $1}')" = "$expected_binary_sha"
+test "$(shasum -a 256 /Users/don/.local/bin/parrot | awk '{print $1}')" = "$expected_binary_sha"
+file .build/release/parrot
+codesign -dv --verbose=4 .build/release/parrot 2>&1
+.build/release/parrot models list
+.build/release/parrot doctor
+git diff --check
+git status --short
+```
+
+Expected: the bootstrap contract passes; both binaries match the pinned hash; `file` reports an arm64 Mach-O; `codesign` reports an ad-hoc signature; the expected three models are listed; every doctor check is clean; and Git remains clean.
+
+- [ ] **Step 3: Package and verify the release assets locally**
+
+Run:
+
+```bash
 release_stage=$(mktemp -d "${TMPDIR:-/tmp}/parrot-local-release.XXXXXX")
-cp .build/arm64-apple-macosx/release/parrot "$release_stage/parrot"
-strip -x "$release_stage/parrot"
+cp .build/release/parrot "$release_stage/parrot"
 cp PARROT_BOOTSTRAP.md "$release_stage/PARROT_BOOTSTRAP.md"
 (cd "$release_stage" && tar -czf parrot-macos-arm64.tar.gz parrot)
 (cd "$release_stage" && shasum -a 256 parrot-macos-arm64.tar.gz > parrot-macos-arm64.tar.gz.sha256)
 (cd "$release_stage" && shasum -a 256 -c parrot-macos-arm64.tar.gz.sha256)
 test "$(tar -tzf "$release_stage/parrot-macos-arm64.tar.gz")" = "parrot"
-file "$release_stage/parrot"
-git diff --check
-git status --short
-rm -rf "$release_stage"
+extract_check=$(mktemp -d "${TMPDIR:-/tmp}/parrot-archive-check.XXXXXX")
+tar -xzf "$release_stage/parrot-macos-arm64.tar.gz" -C "$extract_check"
+test "$(shasum -a 256 "$extract_check/parrot" | awk '{print $1}')" = "$expected_binary_sha"
+rm -rf "$extract_check"
 ```
 
-Expected: all tests pass, checksum verification prints `OK`, archive contents equal `parrot`, `file` reports an arm64 Mach-O executable, and Git shows only ignored/generated `dist` output or no changes.
+Expected: archive checksum verification prints `OK`, the archive contains only `parrot`, and the extracted executable retains the pinned SHA-256.
 
-- [ ] **Step 3: Create and push the immutable release tag**
+- [ ] **Step 4: Publish the source branch and release**
 
 Run:
 
 ```bash
-git tag -a v0.1.0 -m "Parrot v0.1.0"
-git push origin v0.1.0
-```
-
-Expected: GitHub accepts the new tag and starts the `release` workflow for `v0.1.0`.
-
-- [ ] **Step 4: Wait for GitHub Actions and inspect the release**
-
-Run:
-
-```bash
-release_run_id=$(gh run list --workflow release.yml --branch v0.1.0 --limit 1 --json databaseId --jq '.[0].databaseId')
-test -n "$release_run_id"
-gh run watch "$release_run_id" --exit-status
+git push --set-upstream origin custom/dictionary-controls
+gh release create v0.1.0 \
+    --target custom/dictionary-controls \
+    --title 'Parrot v0.1.0' \
+    --notes 'Shareable release of the current local Parrot dictation app. Apple Silicon and macOS 14 or newer are required. Download PARROT_BOOTSTRAP.md and give it to Codex for guided installation.' \
+    "$release_stage/PARROT_BOOTSTRAP.md" \
+    "$release_stage/parrot-macos-arm64.tar.gz" \
+    "$release_stage/parrot-macos-arm64.tar.gz.sha256"
 gh release view v0.1.0 --json tagName,targetCommitish,assets,url
 ```
 
-Expected: the workflow completes successfully and the release has exactly:
+Expected: GitHub publishes the branch and creates tag/release `v0.1.0` at that branch. The release has exactly:
 
 ```text
 PARROT_BOOTSTRAP.md
@@ -445,10 +382,13 @@ gh release download v0.1.0 --dir "$release_check"
 (cd "$release_check" && shasum -a 256 -c parrot-macos-arm64.tar.gz.sha256)
 test "$(tar -tzf "$release_check/parrot-macos-arm64.tar.gz")" = "parrot"
 cmp PARROT_BOOTSTRAP.md "$release_check/PARROT_BOOTSTRAP.md"
+tar -xzf "$release_check/parrot-macos-arm64.tar.gz" -C "$release_check"
+test "$(shasum -a 256 "$release_check/parrot" | awk '{print $1}')" = "$expected_binary_sha"
 rm -rf "$release_check"
+rm -rf "$release_stage"
 ```
 
-Expected: checksum verification prints `OK`, the archive contains only `parrot`, and the published bootstrap is byte-for-byte identical to the committed file.
+Expected: checksum verification prints `OK`, the archive contains only `parrot`, the published bootstrap is byte-for-byte identical to the committed file, and the published executable has the pinned SHA-256.
 
 - [ ] **Step 6: Record the final handoff information**
 
@@ -456,6 +396,7 @@ Run:
 
 ```bash
 gh release view v0.1.0 --json url --jq .url
+git fetch origin tag v0.1.0
 git rev-parse v0.1.0^{}
 shasum -a 256 PARROT_BOOTSTRAP.md
 ```

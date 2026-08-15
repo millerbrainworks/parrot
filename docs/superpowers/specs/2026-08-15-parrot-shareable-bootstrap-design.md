@@ -15,10 +15,12 @@ or understand Swift Package Manager.
 
 ## Recommended approach
 
-Publish an immutable GitHub release containing an arm64 macOS binary built from
-the current local Parrot source. Add `PARROT_BOOTSTRAP.md` to the repository as
-the human- and Codex-readable handoff file. It pins the release tag and asset
-URLs rather than installing an unspecified future "latest" version.
+Publish an immutable GitHub release containing the exact arm64 macOS binary the
+owner currently runs. The installed binary and the release build already in the
+current worktree are byte-for-byte identical. Add `PARROT_BOOTSTRAP.md` to the
+repository as the human- and Codex-readable handoff file. It pins the release
+tag and asset URLs rather than installing an unspecified future "latest"
+version.
 
 This is preferable to a source build because it removes the Swift toolchain and
 long dependency build from the recipient's setup. It is preferable to embedding
@@ -31,11 +33,20 @@ further when base64 encoded, and would be fragile in messaging systems.
 - Source behavior: commit `540b91d`, plus documentation-only bootstrap changes
 - Binary asset: `parrot-macos-arm64.tar.gz`
 - Checksum asset: `parrot-macos-arm64.tar.gz.sha256`
+- Unarchived binary SHA-256: `b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a0`
 - Supported host: Apple Silicon running macOS 14 or newer
 
-The release workflow builds from the tag so the GitHub asset remains tied to an
-immutable source revision. The bootstrap verifies the downloaded archive with
-the published SHA-256 file before extracting or installing it.
+The release tag ties the source and handoff documentation to an immutable
+revision. The asset is staged directly from the verified worktree binary rather
+than rebuilt with a different dependency version. The bootstrap verifies the
+downloaded archive with the published SHA-256 file before extracting or
+installing it.
+
+The pinned WhisperKit `v0.18.0` source no longer compiles under the owner's
+current Swift 6.2.3 toolchain because Foundation members are hidden during its
+cross-module build. Upstream's Swift-6-compatible `v1.0` is a breaking package
+migration. Changing that dependency would violate the goal of sharing the
+current local app, so dependency modernization is a separate future task.
 
 ## Bootstrap document
 
@@ -96,8 +107,10 @@ visible and is retried or diagnosed instead of being ignored.
 
 Before publishing:
 
-- Run the full Swift test suite on the tagged source.
-- Build the release binary for arm64.
+- Confirm that the installed binary and the worktree release binary have the
+  pinned SHA-256 above.
+- Confirm that the binary is an arm64 Mach-O with an ad-hoc code signature.
+- Run `parrot models list` and `parrot doctor` against that exact binary.
 - Inspect the archive layout and independently verify its generated SHA-256.
 - Check every pinned URL in `PARROT_BOOTSTRAP.md` against the release tag.
 - Run Markdown lint-style checks for unresolved placeholders and accidental
@@ -119,4 +132,5 @@ Recipient-side success means:
 - Intel Mac or macOS 13 support
 - Automatic permission grants, which macOS intentionally prevents
 - Publishing future updates automatically through this pinned handoff file
+- Migrating WhisperKit from `v0.18.0` to the breaking `v1.0` package
 - Changing Parrot's dictation behavior
