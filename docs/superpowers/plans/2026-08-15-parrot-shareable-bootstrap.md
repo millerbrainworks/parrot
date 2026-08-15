@@ -333,6 +333,7 @@ Expected: the bootstrap contract passes; both binaries match the pinned hash; `f
 Run:
 
 ```bash
+expected_binary_sha='b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a0'
 release_stage=$(mktemp -d "${TMPDIR:-/tmp}/parrot-local-release.XXXXXX")
 cp .build/release/parrot "$release_stage/parrot"
 cp PARROT_BOOTSTRAP.md "$release_stage/PARROT_BOOTSTRAP.md"
@@ -344,6 +345,7 @@ extract_check=$(mktemp -d "${TMPDIR:-/tmp}/parrot-archive-check.XXXXXX")
 tar -xzf "$release_stage/parrot-macos-arm64.tar.gz" -C "$extract_check"
 test "$(shasum -a 256 "$extract_check/parrot" | awk '{print $1}')" = "$expected_binary_sha"
 rm -rf "$extract_check"
+rm -rf "$release_stage"
 ```
 
 Expected: archive checksum verification prints `OK`, the archive contains only `parrot`, and the extracted executable retains the pinned SHA-256.
@@ -353,6 +355,11 @@ Expected: archive checksum verification prints `OK`, the archive contains only `
 Run:
 
 ```bash
+release_stage=$(mktemp -d "${TMPDIR:-/tmp}/parrot-publish-release.XXXXXX")
+cp .build/release/parrot "$release_stage/parrot"
+cp PARROT_BOOTSTRAP.md "$release_stage/PARROT_BOOTSTRAP.md"
+(cd "$release_stage" && tar -czf parrot-macos-arm64.tar.gz parrot)
+(cd "$release_stage" && shasum -a 256 parrot-macos-arm64.tar.gz > parrot-macos-arm64.tar.gz.sha256)
 git push --set-upstream origin custom/dictionary-controls
 gh release create v0.1.0 \
     --target custom/dictionary-controls \
@@ -362,6 +369,7 @@ gh release create v0.1.0 \
     "$release_stage/parrot-macos-arm64.tar.gz" \
     "$release_stage/parrot-macos-arm64.tar.gz.sha256"
 gh release view v0.1.0 --json tagName,targetCommitish,assets,url
+rm -rf "$release_stage"
 ```
 
 Expected: GitHub publishes the branch and creates tag/release `v0.1.0` at that branch. The release has exactly:
@@ -377,6 +385,7 @@ parrot-macos-arm64.tar.gz.sha256
 Use a new temporary directory rather than the local `dist/` files:
 
 ```bash
+expected_binary_sha='b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a0'
 release_check=$(mktemp -d "${TMPDIR:-/tmp}/parrot-release-check.XXXXXX")
 gh release download v0.1.0 --dir "$release_check"
 (cd "$release_check" && shasum -a 256 -c parrot-macos-arm64.tar.gz.sha256)
@@ -385,7 +394,6 @@ cmp PARROT_BOOTSTRAP.md "$release_check/PARROT_BOOTSTRAP.md"
 tar -xzf "$release_check/parrot-macos-arm64.tar.gz" -C "$release_check"
 test "$(shasum -a 256 "$release_check/parrot" | awk '{print $1}')" = "$expected_binary_sha"
 rm -rf "$release_check"
-rm -rf "$release_stage"
 ```
 
 Expected: checksum verification prints `OK`, the archive contains only `parrot`, the published bootstrap is byte-for-byte identical to the committed file, and the published executable has the pinned SHA-256.
