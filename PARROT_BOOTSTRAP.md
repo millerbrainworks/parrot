@@ -25,6 +25,7 @@ PARROT_REPO="digimata/parrot"
 PARROT_TAG="v0.1.0"
 PARROT_ASSET="parrot-macos-arm64.tar.gz"
 PARROT_CHECKSUM="${PARROT_ASSET}.sha256"
+PARROT_BINARY_SHA256="b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a"
 PARROT_INSTALL_DIR="${HOME}/.local/bin"
 PARROT_TARGET="${HOME}/.local/bin/parrot"
 PARROT_PLIST="${HOME}/Library/LaunchAgents/com.digimata.parrot.plist"
@@ -78,6 +79,11 @@ PARROT_CONTENTS="$(tar -tzf "${PARROT_TMP}/${PARROT_ASSET}")"
 tar -xzf "${PARROT_TMP}/${PARROT_ASSET}" -C "$PARROT_TMP"
 [ -f "${PARROT_TMP}/parrot" ] && [ ! -L "${PARROT_TMP}/parrot" ] || {
     printf 'Archive did not contain a regular Parrot executable.\n' >&2
+    exit 1
+}
+PARROT_BINARY_SHA256_ACTUAL="$(shasum -a 256 "${PARROT_TMP}/parrot" | awk '{print $1}')"
+[ "$PARROT_BINARY_SHA256_ACTUAL" = "$PARROT_BINARY_SHA256" ] || {
+    printf 'Unexpected Parrot executable checksum: %s\n' "$PARROT_BINARY_SHA256_ACTUAL" >&2
     exit 1
 }
 
