@@ -43,7 +43,7 @@ require_doc '~/.local/bin/parrot install --launch-at-login'
 require_doc '~/.local/bin/parrot doctor'
 require_doc 'Press Globe/Fn key to'
 
-require_script 'PARROT_REPO="digimata/parrot"'
+require_script 'PARROT_REPO="millerbrainworks/parrot"'
 require_script 'PARROT_TAG="v0.1.0"'
 require_script 'PARROT_ASSET="parrot-macos-arm64.tar.gz"'
 require_script 'PARROT_BINARY_SHA256="b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a"'

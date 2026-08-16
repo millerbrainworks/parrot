@@ -21,7 +21,7 @@ First, run the following block as one Bash script.
 ```bash
 set -euo pipefail
 
-PARROT_REPO="digimata/parrot"
+PARROT_REPO="millerbrainworks/parrot"
 PARROT_TAG="v0.1.0"
 PARROT_ASSET="parrot-macos-arm64.tar.gz"
 PARROT_CHECKSUM="${PARROT_ASSET}.sha256"
