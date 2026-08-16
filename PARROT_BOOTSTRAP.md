@@ -19,25 +19,37 @@ First, run the following block as one Bash script.
 
 <!-- BEGIN PARROT INSTALL SCRIPT -->
 ```bash
+/bin/bash <<'PARROT_INSTALL'
 set -euo pipefail
 
 PARROT_REPO="millerbrainworks/parrot"
-PARROT_TAG="v0.1.0"
+PARROT_TAG="v0.1.1"
 PARROT_ASSET="parrot-macos-arm64.tar.gz"
 PARROT_CHECKSUM="${PARROT_ASSET}.sha256"
-PARROT_BINARY_SHA256="b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a"
+PARROT_BINARY_SHA256="b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a0"
 PARROT_INSTALL_DIR="${HOME}/.local/bin"
 PARROT_TARGET="${HOME}/.local/bin/parrot"
-PARROT_PLIST="${HOME}/Library/LaunchAgents/com.digimata.parrot.plist"
+PARROT_SERVICE="gui/$(id -u)/com.digimata.parrot"
 
 [ "$(uname -s)" = "Darwin" ] || {
     printf 'Parrot requires macOS.\n' >&2
     exit 1
 }
-[ "$(uname -m)" = "arm64" ] || {
-    printf 'Parrot requires Apple Silicon.\n' >&2
-    exit 1
-}
+PARROT_MACHINE="$(uname -m)"
+case "$PARROT_MACHINE" in
+    arm64) ;;
+    x86_64)
+        PARROT_TRANSLATED="$(/usr/sbin/sysctl -in sysctl.proc_translated 2>/dev/null || true)"
+        [ "$PARROT_TRANSLATED" = "1" ] || {
+            printf 'Parrot requires Apple Silicon; this appears to be an Intel Mac.\n' >&2
+            exit 1
+        }
+        ;;
+    *)
+        printf 'Parrot requires Apple Silicon (reported architecture: %s).\n' "$PARROT_MACHINE" >&2
+        exit 1
+        ;;
+esac
 
 PARROT_MACOS_MAJOR="$(sw_vers -productVersion | awk -F. '{print $1}')"
 case "$PARROT_MACOS_MAJOR" in
@@ -48,7 +60,7 @@ esac
     exit 1
 }
 
-for PARROT_COMMAND in curl tar shasum file install mktemp xattr; do
+for PARROT_COMMAND in curl tar shasum file install mktemp xattr launchctl; do
     command -v "$PARROT_COMMAND" >/dev/null 2>&1 || {
         printf 'Missing required command: %s\n' "$PARROT_COMMAND" >&2
         exit 1
@@ -93,8 +105,13 @@ case "$PARROT_FILE_INFO" in
     *) printf 'Unexpected executable type: %s\n' "$PARROT_FILE_INFO" >&2; exit 1 ;;
 esac
 
-if [ -f "$PARROT_PLIST" ]; then
-    launchctl bootout "gui/$(id -u)" "$PARROT_PLIST" 2>/dev/null || true
+if PARROT_LAUNCH_STATE="$(launchctl print "$PARROT_SERVICE" 2>&1)"; then
+    if ! PARROT_BOOTOUT_OUTPUT="$(launchctl bootout "$PARROT_SERVICE" 2>&1)"; then
+        printf 'Failed to stop the loaded Parrot LaunchAgent before replacement.\n' >&2
+        printf '%s\n' "$PARROT_BOOTOUT_OUTPUT" >&2
+        printf 'Inspect /tmp/parrot.out.log and /tmp/parrot.err.log, then retry.\n' >&2
+        exit 1
+    fi
 fi
 
 mkdir -p "$PARROT_INSTALL_DIR"
@@ -105,6 +122,7 @@ mv -f "$PARROT_STAGE" "$PARROT_TARGET"
 PARROT_STAGE=""
 
 printf 'Installed verified Parrot %s at %s\n' "$PARROT_TAG" "$PARROT_TARGET"
+PARROT_INSTALL
 ```
 <!-- END PARROT INSTALL SCRIPT -->
 
@@ -117,7 +135,40 @@ Next, guide the person through these interactive checkpoints one at a time:
    Do Nothing**.
 3. Run `~/.local/bin/parrot models download whisper-base.en` and wait for the
    one-time model download and warmup to finish.
-4. Run `~/.local/bin/parrot install --launch-at-login`.
+4. Run the entire block below. It runs
+   `~/.local/bin/parrot install --launch-at-login`, then independently verifies
+   that launchd registered the expected service. A warning-only install is not
+   success.
+
+<!-- BEGIN PARROT LAUNCHAGENT SCRIPT -->
+```bash
+/bin/bash <<'PARROT_LAUNCHAGENT'
+set -euo pipefail
+
+PARROT_TARGET="${HOME}/.local/bin/parrot"
+PARROT_SERVICE="gui/$(id -u)/com.digimata.parrot"
+
+if ! PARROT_INSTALL_OUTPUT="$("$PARROT_TARGET" install --launch-at-login 2>&1)"; then
+    printf 'Parrot could not install its LaunchAgent:\n%s\n' "$PARROT_INSTALL_OUTPUT" >&2
+    printf 'Inspect /tmp/parrot.out.log and /tmp/parrot.err.log, then retry.\n' >&2
+    exit 1
+fi
+if [ -n "$PARROT_INSTALL_OUTPUT" ]; then
+    printf '%s\n' "$PARROT_INSTALL_OUTPUT"
+fi
+
+if ! PARROT_LAUNCH_OUTPUT="$(launchctl print "$PARROT_SERVICE" 2>&1)"; then
+    printf 'Parrot reported success, but launchd did not register %s.\n' "$PARROT_SERVICE" >&2
+    printf '%s\n' "$PARROT_LAUNCH_OUTPUT" >&2
+    printf 'Inspect /tmp/parrot.out.log and /tmp/parrot.err.log, then retry.\n' >&2
+    exit 1
+fi
+
+printf 'Verified loaded Parrot LaunchAgent: %s\n' "$PARROT_SERVICE"
+PARROT_LAUNCHAGENT
+```
+<!-- END PARROT LAUNCHAGENT SCRIPT -->
+
 5. Run `~/.local/bin/parrot doctor`. If any item is not clean, show the exact
    remediation and pause for the person to fix it before retrying.
 6. Confirm that Parrot appears in the menu bar. Have the person focus a text
@@ -131,6 +182,7 @@ directly in the relevant Privacy & Security pane and retry.
 
 ## Manual fallback
 
-Without Codex, paste the fenced Bash block into Terminal, then run the four
-`~/.local/bin/parrot` commands above one at a time and follow the same macOS
-permission instructions.
+Without Codex, paste each entire fenced Bash block into Terminal when its step
+calls for it. Each block starts a bounded Bash process and cleans up before it
+returns. Run the setup, model-download, and doctor commands one at a time and
+follow the same macOS permission instructions.

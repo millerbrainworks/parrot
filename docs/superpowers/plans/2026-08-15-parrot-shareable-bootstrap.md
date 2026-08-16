@@ -4,7 +4,7 @@
 
 **Goal:** Publish the owner's current Parrot as an immutable binary release and provide one small Markdown file that a friend can give to Codex for safe installation.
 
-**Architecture:** `PARROT_BOOTSTRAP.md` is the complete recipient handoff and pins release `v0.1.0`. A repository-only shell contract test validates the Markdown's safety properties and shell syntax. The release packages the already-built binary that is byte-for-byte identical to the owner's installed app, avoiding a behavior-changing migration from WhisperKit `v0.18.0` to its breaking Swift-6-compatible `v1.0` package.
+**Architecture:** `PARROT_BOOTSTRAP.md` is the complete recipient handoff and pins corrected release `v0.1.1`; public `v0.1.0` remains untouched. A repository-only behavioral checker executes the extracted fenced Bash against isolated local fixtures and retains narrow syntax/static supplements. The release packages the already-built binary that is byte-for-byte identical to the owner's installed app, avoiding a behavior-changing migration from WhisperKit `v0.18.0` to its breaking Swift-6-compatible `v1.0` package.
 
 **Tech Stack:** Markdown, Bash 3.2-compatible shell, macOS built-in command-line tools, GitHub CLI, GitHub Releases
 
@@ -14,7 +14,7 @@
 
 - Supported host: Apple Silicon running macOS 14 or newer.
 - Install the executable at `~/.local/bin/parrot` without `sudo`.
-- Pin release tag `v0.1.0`; never resolve an unspecified future latest release.
+- Pin release tag `v0.1.1`; never resolve an unspecified future latest release.
 - The unarchived release binary must have SHA-256 `b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a0`.
 - Verify `parrot-macos-arm64.tar.gz` with `parrot-macos-arm64.tar.gz.sha256` before extraction or installation.
 - Preserve existing history, preferences, cached models, and personal dictionary data.
@@ -24,15 +24,19 @@
 
 ---
 
-### Task 1: Shareable bootstrap document and contract test
+### Task 1: Shareable bootstrap document and behavioral checker
 
 **Files:**
 - Create: `PARROT_BOOTSTRAP.md`
 - Create: `scripts/test-bootstrap-doc.sh`
 
 **Interfaces:**
-- Consumes: GitHub repository `millerbrainworks/parrot`, release tag `v0.1.0`, assets `parrot-macos-arm64.tar.gz` and `parrot-macos-arm64.tar.gz.sha256`
-- Produces: a Codex-readable bootstrap with an embedded Bash block delimited by `<!-- BEGIN PARROT INSTALL SCRIPT -->` and `<!-- END PARROT INSTALL SCRIPT -->`; an executable static checker invoked as `scripts/test-bootstrap-doc.sh [document]`
+- Consumes: GitHub repository `millerbrainworks/parrot`, release tag `v0.1.1`, assets `parrot-macos-arm64.tar.gz` and `parrot-macos-arm64.tar.gz.sha256`
+- Produces: a Codex-readable bootstrap with bounded install and LaunchAgent Bash blocks; an executable behavioral checker invoked as `scripts/test-bootstrap-doc.sh [document]`
+
+Steps 1–5 below record the initial bootstrap/checker cycle. The final-review
+correction in Steps 6–10 is part of this plan and defines the final guarantees;
+the initial static assertions remain only as supplemental guards.
 
 - [ ] **Step 1: Write the failing bootstrap contract test**
 
@@ -85,9 +89,9 @@ require_doc '~/.local/bin/parrot doctor'
 require_doc 'Press Globe/Fn key to'
 
 require_script 'PARROT_REPO="millerbrainworks/parrot"'
-require_script 'PARROT_TAG="v0.1.0"'
+require_script 'PARROT_TAG="v0.1.1"'
 require_script 'PARROT_ASSET="parrot-macos-arm64.tar.gz"'
-require_script 'PARROT_BINARY_SHA256="b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a"'
+require_script 'PARROT_BINARY_SHA256="b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a0"'
 require_script 'uname -s'
 require_script 'uname -m'
 require_script 'sw_vers -productVersion'
@@ -161,10 +165,10 @@ First, run the following block as one Bash script.
 set -euo pipefail
 
 PARROT_REPO="millerbrainworks/parrot"
-PARROT_TAG="v0.1.0"
+PARROT_TAG="v0.1.1"
 PARROT_ASSET="parrot-macos-arm64.tar.gz"
 PARROT_CHECKSUM="${PARROT_ASSET}.sha256"
-PARROT_BINARY_SHA256="b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a"
+PARROT_BINARY_SHA256="b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a0"
 PARROT_INSTALL_DIR="${HOME}/.local/bin"
 PARROT_TARGET="${HOME}/.local/bin/parrot"
 PARROT_PLIST="${HOME}/Library/LaunchAgents/com.digimata.parrot.plist"
@@ -293,7 +297,46 @@ git add PARROT_BOOTSTRAP.md scripts/test-bootstrap-doc.sh
 git commit -m "feat: add shareable Parrot bootstrap"
 ```
 
-### Task 2: Verify and publish release `v0.1.0`
+- [ ] **Step 6: Add final-review behavior tests and capture RED**
+
+Execute the extracted scripts against a fresh fixture per case, isolating
+`HOME`, `TMPDIR`, downloads, `launchctl`, and `xattr`. Use the real pinned
+`.build/release/parrot` as the successful binary fixture. Name and exercise the
+mutations: tag rollback/URL drift, skipped staged rename, removed archive
+checksum, removed executable digest check, relaxed archive layout, ignored
+loaded-service `bootout`, omitted post-install service check, rejected Rosetta,
+and removed bounded-Bash wrapper. Capture a distinct failing result for each
+new behavior or mutant before correcting the handoff.
+
+- [ ] **Step 7: Correct the recipient handoff minimally**
+
+Pin `v0.1.1` and the complete executable digest ending in `...455a0`. Wrap each
+executable fence in an explicit `/bin/bash` here-document. Accept native
+`arm64`, accept `x86_64` only when `/usr/sbin/sysctl -in
+sysctl.proc_translated` returns `1`, and reject actual Intel hardware. Before
+replacement, query `gui/<uid>/com.digimata.parrot` and require a successful
+`bootout` when loaded. After `parrot install --launch-at-login`, independently
+require `launchctl print` to find that service; surface command/launchd output
+and both Parrot log paths on failure.
+
+- [ ] **Step 8: Keep design and plan consistent**
+
+Update the design and this plan to the corrected immutable `v0.1.1` handoff,
+explicitly retaining public `v0.1.0` unchanged and reusing the pinned binary
+without a Swift rebuild or dependency migration.
+
+- [ ] **Step 9: Capture GREEN and mutation protection**
+
+Run the entire behavioral checker and `git diff --check`. Then rerun one
+targeted mutant per named behavior and require the selected case to fail. Do
+not run the known-broken Swift source build.
+
+- [ ] **Step 10: Commit one coherent correction**
+
+Commit the corrected handoff, behavioral checker, design, and plan together
+before any public `v0.1.1` mutation.
+
+### Task 2: Verify and publish corrected release `v0.1.1`
 
 **Files:**
 - Verify: `PARROT_BOOTSTRAP.md`
@@ -303,7 +346,7 @@ git commit -m "feat: add shareable Parrot bootstrap"
 
 **Interfaces:**
 - Consumes: the clean committed repository, the exact current Parrot binary, public upstream `digimata/parrot`, and authenticated GitHub CLI access for `millerbrainworks`
-- Produces: public fork `millerbrainworks/parrot`, remote source branch `custom/dictionary-controls`, immutable tag `v0.1.0`, and a public GitHub release with exactly three assets
+- Produces: a fast-forwarded `custom/dictionary-controls` branch in the existing public fork, immutable tag `v0.1.1`, and a public GitHub release with exactly three assets; existing `v0.1.0` remains unchanged
 
 - [ ] **Step 1: Verify release identity and authentication without changing remote state**
 
@@ -311,17 +354,20 @@ Run:
 
 ```bash
 git status --short --branch
-git tag --list v0.1.0
+git tag --list v0.1.1
 gh auth status
-if gh repo view millerbrainworks/parrot --json nameWithOwner,isPrivate,isFork,parent,viewerPermission,url; then
-    git ls-remote --tags https://github.com/millerbrainworks/parrot.git refs/tags/v0.1.0
-    git ls-remote --heads https://github.com/millerbrainworks/parrot.git refs/heads/custom/dictionary-controls
-else
-    printf 'share fork does not exist yet\n'
+gh repo view millerbrainworks/parrot --json nameWithOwner,isPrivate,isFork,parent,viewerPermission,url
+git ls-remote --tags https://github.com/millerbrainworks/parrot.git refs/tags/v0.1.1
+git ls-remote --heads https://github.com/millerbrainworks/parrot.git refs/heads/custom/dictionary-controls
+if gh release view v0.1.1 --repo millerbrainworks/parrot; then
+    printf 'refusing to overwrite existing v0.1.1 release\n' >&2
+    exit 1
 fi
+remote_branch_sha="$(git ls-remote https://github.com/millerbrainworks/parrot.git refs/heads/custom/dictionary-controls | awk '{print $1}')"
+git merge-base --is-ancestor "$remote_branch_sha" HEAD
 ```
 
-Expected: clean `custom/dictionary-controls`, no local or remote `v0.1.0` tag, an active authenticated `millerbrainworks` account, and either no share fork yet or a fork with no release tag/source branch. Stop rather than overwrite if the fork already has either ref.
+Expected: clean `custom/dictionary-controls`, no local tag or remote release/tag named `v0.1.1`, an active authenticated `millerbrainworks` account with `ADMIN` permission on the existing public fork, and a remote source branch that is an ancestor of the corrected local HEAD. Stop rather than overwrite if `v0.1.1` exists, authentication changes, or the branch cannot be fast-forwarded.
 
 - [ ] **Step 2: Verify the exact current binary**
 
@@ -374,22 +420,21 @@ cp .build/release/parrot "$release_stage/parrot"
 cp PARROT_BOOTSTRAP.md "$release_stage/PARROT_BOOTSTRAP.md"
 (cd "$release_stage" && tar -czf parrot-macos-arm64.tar.gz parrot)
 (cd "$release_stage" && shasum -a 256 parrot-macos-arm64.tar.gz > parrot-macos-arm64.tar.gz.sha256)
-gh repo fork digimata/parrot --clone=false --remote=false
 gh repo view millerbrainworks/parrot --json nameWithOwner,isPrivate,isFork,parent,viewerPermission,url
 git push https://github.com/millerbrainworks/parrot.git HEAD:refs/heads/custom/dictionary-controls
-gh release create v0.1.0 \
+gh release create v0.1.1 \
     --repo millerbrainworks/parrot \
     --target custom/dictionary-controls \
-    --title 'Parrot v0.1.0' \
+    --title 'Parrot v0.1.1' \
     --notes 'Shareable release of the current local Parrot dictation app. Apple Silicon and macOS 14 or newer are required. Download PARROT_BOOTSTRAP.md and give it to Codex for guided installation.' \
     "$release_stage/PARROT_BOOTSTRAP.md" \
     "$release_stage/parrot-macos-arm64.tar.gz" \
     "$release_stage/parrot-macos-arm64.tar.gz.sha256"
-gh release view v0.1.0 --repo millerbrainworks/parrot --json tagName,targetCommitish,assets,url
+gh release view v0.1.1 --repo millerbrainworks/parrot --json tagName,targetCommitish,isDraft,isPrerelease,assets,url
 rm -rf "$release_stage"
 ```
 
-Expected: GitHub publishes the branch and creates tag/release `v0.1.0` at that branch. The release has exactly:
+Expected: GitHub fast-forwards the branch and creates tag/release `v0.1.1` at that branch. The release has exactly:
 
 ```text
 PARROT_BOOTSTRAP.md
@@ -404,7 +449,7 @@ Use a new temporary directory rather than the local `dist/` files:
 ```bash
 expected_binary_sha='b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a0'
 release_check=$(mktemp -d "${TMPDIR:-/tmp}/parrot-release-check.XXXXXX")
-gh release download v0.1.0 --repo millerbrainworks/parrot --dir "$release_check"
+gh release download v0.1.1 --repo millerbrainworks/parrot --dir "$release_check"
 (cd "$release_check" && shasum -a 256 -c parrot-macos-arm64.tar.gz.sha256)
 test "$(tar -tzf "$release_check/parrot-macos-arm64.tar.gz")" = "parrot"
 cmp PARROT_BOOTSTRAP.md "$release_check/PARROT_BOOTSTRAP.md"
@@ -420,9 +465,9 @@ Expected: checksum verification prints `OK`, the archive contains only `parrot`,
 Run:
 
 ```bash
-gh release view v0.1.0 --repo millerbrainworks/parrot --json url --jq .url
-git fetch https://github.com/millerbrainworks/parrot.git tag v0.1.0
-git rev-parse v0.1.0^{}
+gh release view v0.1.1 --repo millerbrainworks/parrot --json url --jq .url
+git fetch https://github.com/millerbrainworks/parrot.git tag v0.1.1
+git rev-parse v0.1.1^{}
 shasum -a 256 PARROT_BOOTSTRAP.md
 ```
 
