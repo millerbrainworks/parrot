@@ -29,6 +29,8 @@ further when base64 encoded, and would be fragile in messaging systems.
 
 ## Release identity
 
+- Release repository: `millerbrainworks/parrot`, a public fork of the existing
+  public MIT-licensed `digimata/parrot` repository
 - Release tag: `v0.1.0`
 - Source behavior: commit `540b91d`, plus documentation-only bootstrap changes
 - Binary asset: `parrot-macos-arm64.tar.gz`
@@ -37,10 +39,11 @@ further when base64 encoded, and would be fragile in messaging systems.
 - Supported host: Apple Silicon running macOS 14 or newer
 
 The release tag ties the source and handoff documentation to an immutable
-revision. The asset is staged directly from the verified worktree binary rather
-than rebuilt with a different dependency version. The bootstrap verifies the
-downloaded archive with the published SHA-256 file before extracting or
-installing it.
+revision. The active GitHub identity has write access to the public fork rather
+than the upstream repository. The asset is staged directly from the verified
+worktree binary rather than rebuilt with a different dependency version. The
+bootstrap verifies the downloaded archive with the published SHA-256 file and
+the extracted executable with the pinned binary SHA-256 before installing it.
 
 The pinned WhisperKit `v0.18.0` source no longer compiles under the owner's
 current Swift 6.2.3 toolchain because Foundation members are hidden during its

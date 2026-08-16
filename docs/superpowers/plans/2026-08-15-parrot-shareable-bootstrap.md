@@ -31,7 +31,7 @@
 - Create: `scripts/test-bootstrap-doc.sh`
 
 **Interfaces:**
-- Consumes: GitHub repository `digimata/parrot`, release tag `v0.1.0`, assets `parrot-macos-arm64.tar.gz` and `parrot-macos-arm64.tar.gz.sha256`
+- Consumes: GitHub repository `millerbrainworks/parrot`, release tag `v0.1.0`, assets `parrot-macos-arm64.tar.gz` and `parrot-macos-arm64.tar.gz.sha256`
 - Produces: a Codex-readable bootstrap with an embedded Bash block delimited by `<!-- BEGIN PARROT INSTALL SCRIPT -->` and `<!-- END PARROT INSTALL SCRIPT -->`; an executable static checker invoked as `scripts/test-bootstrap-doc.sh [document]`
 
 - [ ] **Step 1: Write the failing bootstrap contract test**
@@ -84,14 +84,16 @@ require_doc '~/.local/bin/parrot install --launch-at-login'
 require_doc '~/.local/bin/parrot doctor'
 require_doc 'Press Globe/Fn key to'
 
-require_script 'PARROT_REPO="digimata/parrot"'
+require_script 'PARROT_REPO="millerbrainworks/parrot"'
 require_script 'PARROT_TAG="v0.1.0"'
 require_script 'PARROT_ASSET="parrot-macos-arm64.tar.gz"'
+require_script 'PARROT_BINARY_SHA256="b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a"'
 require_script 'uname -s'
 require_script 'uname -m'
 require_script 'sw_vers -productVersion'
 require_script 'shasum -a 256 -c'
 require_script 'tar -tzf'
+require_script 'shasum -a 256 "${PARROT_TMP}/parrot"'
 require_script 'Mach-O 64-bit executable arm64'
 require_script 'PARROT_TARGET="${HOME}/.local/bin/parrot"'
 require_script 'xattr -d com.apple.quarantine'
@@ -105,9 +107,11 @@ fi
 
 checksum_line=$(grep -nF 'shasum -a 256 -c' "$script" | head -1 | cut -d: -f1)
 extract_line=$(grep -nF 'tar -xzf' "$script" | head -1 | cut -d: -f1)
+executable_checksum_line=$(grep -nF 'shasum -a 256 "${PARROT_TMP}/parrot"' "$script" | head -1 | cut -d: -f1)
 xattr_line=$(grep -nF 'xattr -d com.apple.quarantine' "$script" | head -1 | cut -d: -f1)
 [ "$checksum_line" -lt "$extract_line" ] || fail "archive is extracted before checksum verification"
-[ "$extract_line" -lt "$xattr_line" ] || fail "quarantine is removed before verified extraction"
+[ "$extract_line" -lt "$executable_checksum_line" ] || fail "binary checksum is checked before extraction"
+[ "$executable_checksum_line" -lt "$xattr_line" ] || fail "quarantine is removed before pinned binary verification"
 
 printf 'bootstrap contract passed: %s\n' "$doc"
 ```
@@ -156,10 +160,11 @@ First, run the following block as one Bash script.
 ```bash
 set -euo pipefail
 
-PARROT_REPO="digimata/parrot"
+PARROT_REPO="millerbrainworks/parrot"
 PARROT_TAG="v0.1.0"
 PARROT_ASSET="parrot-macos-arm64.tar.gz"
 PARROT_CHECKSUM="${PARROT_ASSET}.sha256"
+PARROT_BINARY_SHA256="b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a"
 PARROT_INSTALL_DIR="${HOME}/.local/bin"
 PARROT_TARGET="${HOME}/.local/bin/parrot"
 PARROT_PLIST="${HOME}/Library/LaunchAgents/com.digimata.parrot.plist"
@@ -213,6 +218,11 @@ PARROT_CONTENTS="$(tar -tzf "${PARROT_TMP}/${PARROT_ASSET}")"
 tar -xzf "${PARROT_TMP}/${PARROT_ASSET}" -C "$PARROT_TMP"
 [ -f "${PARROT_TMP}/parrot" ] && [ ! -L "${PARROT_TMP}/parrot" ] || {
     printf 'Archive did not contain a regular Parrot executable.\n' >&2
+    exit 1
+}
+PARROT_BINARY_SHA256_ACTUAL="$(shasum -a 256 "${PARROT_TMP}/parrot" | awk '{print $1}')"
+[ "$PARROT_BINARY_SHA256_ACTUAL" = "$PARROT_BINARY_SHA256" ] || {
+    printf 'Unexpected Parrot executable checksum: %s\n' "$PARROT_BINARY_SHA256_ACTUAL" >&2
     exit 1
 }
 
@@ -292,8 +302,8 @@ git commit -m "feat: add shareable Parrot bootstrap"
 - Generate in a temporary directory: `PARROT_BOOTSTRAP.md`, `parrot`, `parrot-macos-arm64.tar.gz`, `parrot-macos-arm64.tar.gz.sha256`
 
 **Interfaces:**
-- Consumes: the clean committed repository, the exact current Parrot binary, GitHub remote `origin`, and authenticated GitHub CLI access
-- Produces: remote source branch `custom/dictionary-controls`, immutable tag `v0.1.0`, and a public GitHub release with exactly three assets
+- Consumes: the clean committed repository, the exact current Parrot binary, public upstream `digimata/parrot`, and authenticated GitHub CLI access for `millerbrainworks`
+- Produces: public fork `millerbrainworks/parrot`, remote source branch `custom/dictionary-controls`, immutable tag `v0.1.0`, and a public GitHub release with exactly three assets
 
 - [ ] **Step 1: Verify release identity and authentication without changing remote state**
 
@@ -302,12 +312,16 @@ Run:
 ```bash
 git status --short --branch
 git tag --list v0.1.0
-git ls-remote --tags origin refs/tags/v0.1.0
-git ls-remote --heads origin refs/heads/custom/dictionary-controls
 gh auth status
+if gh repo view millerbrainworks/parrot --json nameWithOwner,isPrivate,isFork,parent,viewerPermission,url; then
+    git ls-remote --tags https://github.com/millerbrainworks/parrot.git refs/tags/v0.1.0
+    git ls-remote --heads https://github.com/millerbrainworks/parrot.git refs/heads/custom/dictionary-controls
+else
+    printf 'share fork does not exist yet\n'
+fi
 ```
 
-Expected: clean `custom/dictionary-controls`, no local or remote `v0.1.0` tag, and authenticated access to `digimata/parrot`. Record whether the source branch already exists remotely before pushing it.
+Expected: clean `custom/dictionary-controls`, no local or remote `v0.1.0` tag, an active authenticated `millerbrainworks` account, and either no share fork yet or a fork with no release tag/source branch. Stop rather than overwrite if the fork already has either ref.
 
 - [ ] **Step 2: Verify the exact current binary**
 
@@ -360,15 +374,18 @@ cp .build/release/parrot "$release_stage/parrot"
 cp PARROT_BOOTSTRAP.md "$release_stage/PARROT_BOOTSTRAP.md"
 (cd "$release_stage" && tar -czf parrot-macos-arm64.tar.gz parrot)
 (cd "$release_stage" && shasum -a 256 parrot-macos-arm64.tar.gz > parrot-macos-arm64.tar.gz.sha256)
-git push --set-upstream origin custom/dictionary-controls
+gh repo fork digimata/parrot --clone=false --remote=false
+gh repo view millerbrainworks/parrot --json nameWithOwner,isPrivate,isFork,parent,viewerPermission,url
+git push https://github.com/millerbrainworks/parrot.git HEAD:refs/heads/custom/dictionary-controls
 gh release create v0.1.0 \
+    --repo millerbrainworks/parrot \
     --target custom/dictionary-controls \
     --title 'Parrot v0.1.0' \
     --notes 'Shareable release of the current local Parrot dictation app. Apple Silicon and macOS 14 or newer are required. Download PARROT_BOOTSTRAP.md and give it to Codex for guided installation.' \
     "$release_stage/PARROT_BOOTSTRAP.md" \
     "$release_stage/parrot-macos-arm64.tar.gz" \
     "$release_stage/parrot-macos-arm64.tar.gz.sha256"
-gh release view v0.1.0 --json tagName,targetCommitish,assets,url
+gh release view v0.1.0 --repo millerbrainworks/parrot --json tagName,targetCommitish,assets,url
 rm -rf "$release_stage"
 ```
 
@@ -387,7 +404,7 @@ Use a new temporary directory rather than the local `dist/` files:
 ```bash
 expected_binary_sha='b5f97e2aa475b0b93e9a53d45ba28fdacc4e5d67e038dc4c318f3640282455a0'
 release_check=$(mktemp -d "${TMPDIR:-/tmp}/parrot-release-check.XXXXXX")
-gh release download v0.1.0 --dir "$release_check"
+gh release download v0.1.0 --repo millerbrainworks/parrot --dir "$release_check"
 (cd "$release_check" && shasum -a 256 -c parrot-macos-arm64.tar.gz.sha256)
 test "$(tar -tzf "$release_check/parrot-macos-arm64.tar.gz")" = "parrot"
 cmp PARROT_BOOTSTRAP.md "$release_check/PARROT_BOOTSTRAP.md"
@@ -403,8 +420,8 @@ Expected: checksum verification prints `OK`, the archive contains only `parrot`,
 Run:
 
 ```bash
-gh release view v0.1.0 --json url --jq .url
-git fetch origin tag v0.1.0
+gh release view v0.1.0 --repo millerbrainworks/parrot --json url --jq .url
+git fetch https://github.com/millerbrainworks/parrot.git tag v0.1.0
 git rev-parse v0.1.0^{}
 shasum -a 256 PARROT_BOOTSTRAP.md
 ```
